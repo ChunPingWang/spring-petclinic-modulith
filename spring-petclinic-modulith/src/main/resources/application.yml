@@ -1,0 +1,110 @@
+# Spring PetClinic Modulith Application Configuration
+
+spring:
+  application:
+    name: spring-petclinic-modulith
+  
+  # JPA Configuration
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # DataSource Configuration (HSQLDB in-memory by default)
+  datasource:
+    url: jdbc:hsqldb:mem:petclinic
+    username: sa
+    password: 
+    driver-class-name: org.hsqldb.jdbcDriver
+  
+  # Initialize database schema and data
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/hsqldb/schema.sql
+      data-locations: classpath:db/hsqldb/data.sql
+  
+  # Spring Modulith Configuration
+  modulith:
+    events:
+      # Use JPA-based event publication registry
+      republish-outstanding-events-on-restart: true
+    observability:
+      # Enable observability for module interactions
+      enabled: true
+
+# Server Configuration
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+  
+# Management & Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,modulith
+  endpoint:
+    health:
+      show-details: always
+  
+  # Metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+  
+  # Tracing
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+# Logging
+logging:
+  level:
+    root: INFO
+    org.springframework.samples.petclinic: DEBUG
+    org.springframework.modulith: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+---
+# MySQL Profile
+spring:
+  config:
+    activate:
+      on-profile: mysql
+  datasource:
+    url: jdbc:mysql://localhost:3306/petclinic?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: petclinic
+    password: petclinic
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/mysql/schema.sql
+      data-locations: classpath:db/mysql/data.sql
+
+---
+# Docker Profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://mysql-server:3306/petclinic

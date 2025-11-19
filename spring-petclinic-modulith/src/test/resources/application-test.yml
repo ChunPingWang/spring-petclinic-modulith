@@ -1,0 +1,43 @@
+# Test Profile Configuration
+
+spring:
+  application:
+    name: petclinic-modulith-test
+  
+  # Use in-memory H2 database for tests
+  datasource:
+    driver-class-name: org.hsqldb.jdbc.JDBCDriver
+    url: jdbc:hsqldb:mem:testdb
+    username: sa
+    password: 
+  
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.HSQLDialect
+  
+  sql:
+    init:
+      mode: embedded
+      platform: hsqldb
+  
+  # Disable Spring Modulith events persistence for tests
+  modulith:
+    events:
+      jdbc:
+        enabled: false
+
+# Disable actuator endpoints in tests
+management:
+  endpoints:
+    enabled-by-default: false
+
+# Logging
+logging:
+  level:
+    org.springframework.samples.petclinic: DEBUG
+    org.springframework.modulith: DEBUG
