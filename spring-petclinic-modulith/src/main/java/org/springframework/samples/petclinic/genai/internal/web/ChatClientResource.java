@@ -15,6 +15,7 @@
  */
 package org.springframework.samples.petclinic.genai.internal.web;
 
+import io.micrometer.core.annotation.Timed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.samples.petclinic.genai.ChatService;
@@ -30,7 +31,8 @@ import org.springframework.web.bind.annotation.RestController;
  * @author PetClinic Team
  */
 @RestController
-@RequestMapping("/")
+@RequestMapping("/chatclient")
+@Timed("petclinic.chat")
 public class ChatClientResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(ChatClientResource.class);
@@ -41,7 +43,7 @@ public class ChatClientResource {
         this.chatService = chatService;
     }
 
-    @PostMapping("/chatclient")
+    @PostMapping
     public String exchange(@RequestBody String query) {
         LOG.debug("Processing chat query: {}", query);
         return chatService.exchange(query);

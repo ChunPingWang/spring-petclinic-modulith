@@ -49,15 +49,33 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,prometheus,modulith
+        include: health,info,metrics,prometheus,modulith,env,loggers
+      base-path: /actuator
   endpoint:
     health:
       show-details: always
+      probes:
+        enabled: true
+    modulith:
+      enabled: true
+  
+  # Health Groups
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
   
   # Metrics
   metrics:
     tags:
       application: ${spring.application.name}
+      environment: dev
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,2s
     export:
       prometheus:
         enabled: true
@@ -66,9 +84,18 @@ management:
   tracing:
     sampling:
       probability: 1.0
+    propagation:
+      type: jaeger,w3c
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
+  
+  # OpenTelemetry
+  otlp:
+    metrics:
+      export:
+        enabled: false
+        interval: 10000ms
 
 # Logging
 logging:
