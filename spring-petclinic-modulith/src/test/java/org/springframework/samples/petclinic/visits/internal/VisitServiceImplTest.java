@@ -263,9 +263,33 @@ class VisitServiceImplTest {
         // Then
         ArgumentCaptor<Visit> visitCaptor = ArgumentCaptor.forClass(Visit.class);
         verify(visitRepository).save(visitCaptor.capture());
-        
+
         Visit saved = visitCaptor.getValue();
         assertThat(saved.getStatus()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCompletingNonExistentVisit() {
+        // Given
+        given(visitRepository.findById(999)).willReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> visitService.completeVisit(999))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessageContaining("Visit")
+            .hasMessageContaining("999");
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCancellingNonExistentVisit() {
+        // Given
+        given(visitRepository.findById(999)).willReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> visitService.cancelVisit(999))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessageContaining("Visit")
+            .hasMessageContaining("999");
     }
 
     private Visit createVisit(Integer id, Integer petId, Integer vetId, String description, String status) {

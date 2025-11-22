@@ -169,6 +169,31 @@ class VetServiceImplTest {
             .hasMessageContaining("999");
     }
 
+    @Test
+    void shouldDeleteVetById() {
+        // Given
+        Vet vet = createVet(1, "James", "Carter");
+        given(vetRepository.findById(1)).willReturn(Optional.of(vet));
+
+        // When
+        vetService.deleteById(1);
+
+        // Then
+        verify(vetRepository).deleteById(1);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenDeletingNonExistentVet() {
+        // Given
+        given(vetRepository.findById(999)).willReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> vetService.deleteById(999))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessageContaining("Vet")
+            .hasMessageContaining("999");
+    }
+
     private Vet createVet(Integer id, String firstName, String lastName) {
         Vet vet = new Vet();
         vet.setId(id);

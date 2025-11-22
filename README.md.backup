@@ -72,13 +72,6 @@ spring-petclinic-modulith/
 
 ## 🏗️ 架構設計
 
-> 📊 **詳細架構圖表**: 請參閱 **[ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md)** 查看完整的:
-> - 系統架構圖
-> - 循序圖 (建立就診記錄、異常處理流程)
-> - 資料庫 Schema 和 ER-Diagram
-> - 模組邊界圖
-> - 事件流程圖
-
 ### 模組組織
 
 每個模組遵循 Spring Modulith 模式：
@@ -259,7 +252,6 @@ docker run -p 8080:8080 springcommunity/spring-petclinic-modulith:3.4.1
 
 ## 📚 文件
 
-- **[ARCHITECTURE_DIAGRAMS.md](ARCHITECTURE_DIAGRAMS.md)** - 架構圖表、循序圖、ER-Diagram
 - **[CLAUDE.md](CLAUDE.md)** - Claude Code 使用指南
 - **[spring-petclinic-modulith/README.md](spring-petclinic-modulith/README.md)** - 詳細文件
 - **[spring-petclinic-modulith/ARCHITECTURE_DECISIONS.md](spring-petclinic-modulith/ARCHITECTURE_DECISIONS.md)** - 架構決策記錄
