@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.samples.petclinic.customers.Customer;
 import org.springframework.samples.petclinic.customers.CustomerCreated;
+import org.springframework.samples.petclinic.customers.CustomerDeleted;
 import org.springframework.samples.petclinic.customers.CustomerService;
 import org.springframework.samples.petclinic.customers.CustomerUpdated;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
@@ -83,26 +84,44 @@ class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer update(Integer customerId, Customer customer) {
         log.info("Updating customer ID: {}", customerId);
-        
+
         Customer existingCustomer = customerRepository.findById(customerId)
             .orElseThrow(() -> new ResourceNotFoundException("Customer", customerId));
-        
+
         // Update fields
         existingCustomer.setFirstName(customer.getFirstName());
         existingCustomer.setLastName(customer.getLastName());
         existingCustomer.setAddress(customer.getAddress());
         existingCustomer.setCity(customer.getCity());
         existingCustomer.setTelephone(customer.getTelephone());
-        
+
         Customer updatedCustomer = customerRepository.save(existingCustomer);
-        
+
         // Publish domain event
         events.publishEvent(new CustomerUpdated(
             updatedCustomer.getId(),
             updatedCustomer.getFullName()
         ));
-        
+
         log.info("Customer updated: {}", updatedCustomer.getId());
         return updatedCustomer;
+    }
+
+    @Override
+    public void deleteById(Integer customerId) {
+        log.info("Deleting customer ID: {}", customerId);
+
+        Customer existingCustomer = customerRepository.findById(customerId)
+            .orElseThrow(() -> new ResourceNotFoundException("Customer", customerId));
+
+        customerRepository.deleteById(customerId);
+
+        // Publish domain event
+        events.publishEvent(new CustomerDeleted(
+            existingCustomer.getId(),
+            existingCustomer.getFullName()
+        ));
+
+        log.info("Customer deleted: {} {}", existingCustomer.getFirstName(), existingCustomer.getLastName());
     }
 }

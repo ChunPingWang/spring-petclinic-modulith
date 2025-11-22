@@ -35,6 +35,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Optional;
 
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -78,8 +81,31 @@ class PetResourceTest {
             .andExpect(jsonPath("$.type.id").value(6));
     }
 
+    @Test
+    void shouldDeletePet() throws Exception {
+        Pet pet = setupPet();
+        given(petRepository.findById(2)).willReturn(Optional.of(pet));
+        doNothing().when(petRepository).deleteById(2);
+
+        mvc.perform(delete("/owners/2/pets/2"))
+            .andExpect(status().isNoContent());
+
+        verify(petRepository).deleteById(2);
+    }
+
+    @Test
+    void shouldReturn404WhenDeletingPetOfWrongOwner() throws Exception {
+        Pet pet = setupPet();
+        given(petRepository.findById(2)).willReturn(Optional.of(pet));
+
+        // Try to delete pet with wrong owner ID
+        mvc.perform(delete("/owners/999/pets/2"))
+            .andExpect(status().isNotFound());
+    }
+
     private Pet setupPet() {
         Customer owner = new Customer();
+        owner.setId(2);
         owner.setFirstName("George");
         owner.setLastName("Bush");
 

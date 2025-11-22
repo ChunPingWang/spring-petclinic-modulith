@@ -52,10 +52,17 @@ public interface CustomerService {
     
     /**
      * Update an existing customer.
-     * 
+     *
      * @param customerId the customer ID
      * @param customer the customer data to update
      * @return the updated customer
      */
     Customer update(Integer customerId, Customer customer);
+
+    /**
+     * Delete a customer by ID.
+     *
+     * @param customerId the customer ID to delete
+     */
+    void deleteById(Integer customerId);
 }

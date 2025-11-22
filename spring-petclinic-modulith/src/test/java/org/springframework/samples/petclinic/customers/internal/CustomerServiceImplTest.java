@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.samples.petclinic.customers.Customer;
 import org.springframework.samples.petclinic.customers.CustomerCreated;
+import org.springframework.samples.petclinic.customers.CustomerDeleted;
 import org.springframework.samples.petclinic.customers.CustomerService;
 import org.springframework.samples.petclinic.customers.CustomerUpdated;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
@@ -166,6 +167,39 @@ class CustomerServiceImplTest {
 
         // When/Then
         assertThatThrownBy(() -> customerService.update(999, updateData))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessageContaining("Customer")
+            .hasMessageContaining("999");
+    }
+
+    @Test
+    void shouldDeleteCustomerAndPublishEvent() {
+        // Given
+        Customer customer = createCustomer(1, "George", "Franklin");
+        given(customerRepository.findById(1)).willReturn(Optional.of(customer));
+
+        // When
+        customerService.deleteById(1);
+
+        // Then
+        verify(customerRepository).deleteById(1);
+
+        // Verify event was published
+        ArgumentCaptor<CustomerDeleted> eventCaptor = ArgumentCaptor.forClass(CustomerDeleted.class);
+        verify(events).publishEvent(eventCaptor.capture());
+
+        CustomerDeleted event = eventCaptor.getValue();
+        assertThat(event.customerId()).isEqualTo(1);
+        assertThat(event.customerName()).isEqualTo("George Franklin");
+    }
+
+    @Test
+    void shouldThrowExceptionWhenDeletingNonExistentCustomer() {
+        // Given
+        given(customerRepository.findById(999)).willReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> customerService.deleteById(999))
             .isInstanceOf(ResourceNotFoundException.class)
             .hasMessageContaining("Customer")
             .hasMessageContaining("999");

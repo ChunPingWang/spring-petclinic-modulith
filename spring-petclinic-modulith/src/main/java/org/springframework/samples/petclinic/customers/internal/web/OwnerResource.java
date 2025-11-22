@@ -85,10 +85,20 @@ class OwnerResource {
      */
     @PutMapping(value = "/{ownerId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void updateOwner(@PathVariable("ownerId") @Min(1) int ownerId, 
+    public void updateOwner(@PathVariable("ownerId") @Min(1) int ownerId,
                            @Valid @RequestBody OwnerRequest ownerRequest) {
         Customer customer = ownerEntityMapper.map(new Customer(), ownerRequest);
         log.info("Updating owner {}", ownerId);
         customerService.update(ownerId, customer);
+    }
+
+    /**
+     * Delete Owner
+     */
+    @DeleteMapping(value = "/{ownerId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteOwner(@PathVariable("ownerId") @Min(1) int ownerId) {
+        log.info("Deleting owner {}", ownerId);
+        customerService.deleteById(ownerId);
     }
 }

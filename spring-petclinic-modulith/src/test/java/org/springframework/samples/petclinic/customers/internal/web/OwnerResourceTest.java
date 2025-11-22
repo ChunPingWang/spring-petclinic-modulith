@@ -31,6 +31,9 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -106,5 +109,15 @@ class OwnerResourceTest {
             .andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.firstName").value("John"))
             .andExpect(jsonPath("$.lastName").value("Doe"));
+    }
+
+    @Test
+    void shouldDeleteOwner() throws Exception {
+        doNothing().when(customerService).deleteById(1);
+
+        mvc.perform(delete("/owners/1"))
+            .andExpect(status().isNoContent());
+
+        verify(customerService).deleteById(1);
     }
 }

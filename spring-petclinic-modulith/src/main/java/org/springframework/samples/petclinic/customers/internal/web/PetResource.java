@@ -23,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.samples.petclinic.customers.Customer;
 import org.springframework.samples.petclinic.customers.PetAdded;
+import org.springframework.samples.petclinic.customers.PetDeleted;
 import org.springframework.samples.petclinic.customers.internal.CustomerRepository;
 import org.springframework.samples.petclinic.customers.internal.Pet;
 import org.springframework.samples.petclinic.customers.internal.PetRepository;
@@ -97,6 +98,31 @@ class PetResource {
         int petId = petRequest.id();
         Pet pet = findPetById(petId);
         save(pet, petRequest);
+    }
+
+    @DeleteMapping("/owners/{ownerId}/pets/{petId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deletePet(@PathVariable("ownerId") @Min(1) int ownerId,
+                         @PathVariable("petId") @Min(1) int petId) {
+        log.info("Deleting pet {} for owner {}", petId, ownerId);
+
+        Pet pet = findPetById(petId);
+
+        // Verify the pet belongs to the specified owner
+        if (pet.getOwner() == null || !pet.getOwner().getId().equals(ownerId)) {
+            throw new ResourceNotFoundException("Pet " + petId + " not found for owner " + ownerId);
+        }
+
+        petRepository.deleteById(petId);
+
+        // Publish domain event
+        events.publishEvent(new PetDeleted(
+            petId,
+            ownerId,
+            pet.getName()
+        ));
+
+        log.info("Pet deleted: {}", pet.getName());
     }
 
     private Pet save(final Pet pet, final PetRequest petRequest) {
