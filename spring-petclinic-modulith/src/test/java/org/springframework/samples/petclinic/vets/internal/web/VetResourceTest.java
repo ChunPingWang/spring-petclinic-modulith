@@ -31,9 +31,20 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Unit tests for VetResource REST controller.
@@ -50,6 +61,9 @@ class VetResourceTest {
 
     @Autowired
     MockMvc mvc;
+
+    @Autowired
+    ObjectMapper objectMapper;
 
     @MockBean
     VetService vetService;
@@ -111,5 +125,85 @@ class VetResourceTest {
         // When & Then
         mvc.perform(get("/vets/999").accept(MediaType.APPLICATION_JSON))
             .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldCreateNewVet() throws Exception {
+        // Given
+        Vet newVet = new Vet();
+        newVet.setFirstName("Sarah");
+        newVet.setLastName("Miller");
+
+        Vet savedVet = new Vet();
+        savedVet.setId(10);
+        savedVet.setFirstName("Sarah");
+        savedVet.setLastName("Miller");
+
+        given(vetService.save(any(Vet.class))).willReturn(savedVet);
+
+        // When & Then
+        mvc.perform(post("/vets")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(newVet)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(10))
+            .andExpect(jsonPath("$.firstName").value("Sarah"))
+            .andExpect(jsonPath("$.lastName").value("Miller"));
+
+        verify(vetService).save(any(Vet.class));
+    }
+
+    @Test
+    void shouldUpdateExistingVet() throws Exception {
+        // Given
+        Vet updatedVet = new Vet();
+        updatedVet.setFirstName("James");
+        updatedVet.setLastName("Smith");
+
+        Vet returnedVet = new Vet();
+        returnedVet.setId(1);
+        returnedVet.setFirstName("James");
+        returnedVet.setLastName("Smith");
+
+        given(vetService.update(eq(1), any(Vet.class))).willReturn(returnedVet);
+
+        // When & Then
+        mvc.perform(put("/vets/1")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatedVet)))
+            .andExpect(status().isNoContent());
+
+        verify(vetService).update(eq(1), any(Vet.class));
+    }
+
+    @Test
+    void shouldDeleteVet() throws Exception {
+        // Given
+        Vet existingVet = new Vet();
+        existingVet.setId(1);
+        existingVet.setFirstName("James");
+        existingVet.setLastName("Carter");
+
+        given(vetService.findById(1)).willReturn(Optional.of(existingVet));
+        doNothing().when(vetService).deleteById(1);
+
+        // When & Then
+        mvc.perform(delete("/vets/1"))
+            .andExpect(status().isNoContent());
+
+        verify(vetService).findById(1);
+        verify(vetService).deleteById(1);
+    }
+
+    @Test
+    void shouldReturn404WhenDeletingNonExistentVet() throws Exception {
+        // Given
+        given(vetService.findById(999)).willReturn(Optional.empty());
+
+        // When & Then
+        mvc.perform(delete("/vets/999"))
+            .andExpect(status().isNotFound());
+
+        verify(vetService).findById(999);
     }
 }
