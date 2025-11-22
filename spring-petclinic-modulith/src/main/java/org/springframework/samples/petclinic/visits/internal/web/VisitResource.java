@@ -21,6 +21,7 @@ import jakarta.validation.constraints.Min;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
 import org.springframework.samples.petclinic.visits.Visit;
 import org.springframework.samples.petclinic.visits.VisitService;
 import org.springframework.web.bind.annotation.*;
@@ -61,10 +62,7 @@ class VisitResource {
     @GetMapping("/{id}")
     public Visit getVisit(@PathVariable("id") @Min(1) Integer id) {
         return visitService.findById(id)
-            .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
-                org.springframework.http.HttpStatus.NOT_FOUND,
-                "Visit not found: " + id
-            ));
+            .orElseThrow(() -> new ResourceNotFoundException("Visit", id));
     }
 
     @GetMapping("/pet/{petId}")
