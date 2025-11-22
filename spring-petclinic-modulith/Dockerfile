@@ -1,7 +1,7 @@
 FROM eclipse-temurin:21-jre-alpine
 
-ARG ARTIFACT_NAME
-ARG EXPOSED_PORT
+ARG ARTIFACT_NAME=target/spring-petclinic-modulith-3.4.1
+ARG EXPOSED_PORT=8080
 
 WORKDIR /app
 

@@ -24,6 +24,7 @@ import org.springframework.ai.document.DocumentReader;
 import org.springframework.ai.reader.JsonReader;
 import org.springframework.ai.vectorstore.SimpleVectorStore;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.ParameterizedTypeReference;
@@ -45,10 +46,12 @@ import java.util.Set;
 
 /**
  * Loads the veterinarians data into a vector store for the purpose of RAG functionality.
+ * Only active when VectorStore bean is available (requires OpenAI API key).
  *
  * @author PetClinic Team
  */
 @Component
+@ConditionalOnBean(VectorStore.class)
 public class VectorStoreController {
 
     private final Logger logger = LoggerFactory.getLogger(VectorStoreController.class);

@@ -66,9 +66,9 @@ CREATE TABLE IF NOT EXISTS vet_specialties (
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS visits (
-    id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
-    pet_id INT NOT NULL,
-    vet_id INT NOT NULL,
+    id INT(4) UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    pet_id INT(4) UNSIGNED NOT NULL,
+    vet_id INT(4) UNSIGNED NOT NULL,
     visit_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     description VARCHAR(8192),
     status VARCHAR(20) DEFAULT 'SCHEDULED',

@@ -20,6 +20,7 @@ import java.util.List;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.samples.petclinic.customers.CustomerService;
 import org.springframework.samples.petclinic.genai.internal.dto.OwnerDetails;
@@ -46,7 +47,8 @@ public class AIDataProvider {
     private final VetService vetService;
     private final WebClient webClient;
 
-    public AIDataProvider(VectorStore vectorStore, CustomerService customerService, 
+    public AIDataProvider(@Autowired(required = false) VectorStore vectorStore,
+                         CustomerService customerService,
                          VetService vetService, WebClient.Builder webClientBuilder) {
         this.vectorStore = vectorStore;
         this.customerService = customerService;

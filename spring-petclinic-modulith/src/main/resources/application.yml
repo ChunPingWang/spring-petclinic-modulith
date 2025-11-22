@@ -3,7 +3,12 @@
 spring:
   application:
     name: spring-petclinic-modulith
-  
+
+  # AI Configuration (optional - provide API key to enable)
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:dummy}
+
   # JPA Configuration
   jpa:
     open-in-view: false
@@ -80,15 +85,15 @@ management:
       prometheus:
         enabled: true
   
-  # Tracing
+  # Tracing (Zipkin 為選用，使用 docker-compose 時會啟動)
   tracing:
     sampling:
       probability: 1.0
     propagation:
-      type: jaeger,w3c
+      type: w3c,b3
   zipkin:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
   
   # OpenTelemetry
   otlp:
@@ -134,4 +139,12 @@ spring:
     activate:
       on-profile: docker
   datasource:
-    url: jdbc:mysql://mysql-server:3306/petclinic
+    url: jdbc:mysql://mysql-server:3306/petclinic?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: petclinic
+    password: petclinic
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/mysql/schema.sql
+      data-locations: classpath:db/mysql/data.sql

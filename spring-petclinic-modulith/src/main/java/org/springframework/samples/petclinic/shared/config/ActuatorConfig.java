@@ -17,6 +17,7 @@ package org.springframework.samples.petclinic.shared.config;
 
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.modulith.core.ApplicationModules;
 import org.springframework.stereotype.Component;
 
@@ -25,18 +26,20 @@ import java.util.Map;
 
 /**
  * Custom Actuator endpoint for Spring PetClinic Modulith health status.
- * 
+ *
  * Provides information about:
  * - Application modules and their structure
  * - Module dependencies
  * - Module health status
- * 
+ *
  * Accessible at: /actuator/petclinic-health
- * 
+ * Only active when ApplicationModules bean is available.
+ *
  * @author PetClinic Team
  */
 @Component
 @Endpoint(id = "petclinic-health")
+@ConditionalOnBean(ApplicationModules.class)
 public class ActuatorConfig {
 
     private final ApplicationModules modules;

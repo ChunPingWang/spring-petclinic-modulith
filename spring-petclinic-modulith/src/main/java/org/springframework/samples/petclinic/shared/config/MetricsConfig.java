@@ -15,7 +15,6 @@
  */
 package org.springframework.samples.petclinic.shared.config;
 
-import io.micrometer.core.aop.TimedAspect;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.actuate.autoconfigure.metrics.MeterRegistryCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -23,9 +22,10 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Metrics configuration for the PetClinic application.
- * 
+ *
  * Provides common metrics configuration that can be used across all modules.
- * 
+ * Note: TimedAspect is configured in MicrometerMetricsConfig.
+ *
  * @author PetClinic Team
  */
 @Configuration
@@ -41,13 +41,5 @@ public class MetricsConfig {
                 "application", "petclinic-modulith",
                 "environment", "development"
             );
-    }
-
-    /**
-     * Enable @Timed annotation support for metrics.
-     */
-    @Bean
-    public TimedAspect timedAspect(MeterRegistry registry) {
-        return new TimedAspect(registry);
     }
 }

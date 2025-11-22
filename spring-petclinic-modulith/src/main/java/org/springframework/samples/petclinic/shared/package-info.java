@@ -14,16 +14,22 @@
  * limitations under the License.
  */
 
+@org.springframework.modulith.ApplicationModule(
+    displayName = "Shared",
+    allowedDependencies = {},
+    type = org.springframework.modulith.ApplicationModule.Type.OPEN
+)
 /**
  * Shared module providing common functionality across all PetClinic modules.
- * 
+ *
  * This module contains:
- * - Common exceptions
+ * - Common exceptions (public API)
  * - Shared configuration
  * - Shared utilities
- * 
+ *
  * All other modules can depend on this shared module.
- * 
+ * This module is marked as OPEN, meaning all its packages are public API.
+ *
  * @author PetClinic Team
  */
 package org.springframework.samples.petclinic.shared;

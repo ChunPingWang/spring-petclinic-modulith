@@ -5,14 +5,14 @@
 -- Customers Module Tables
 -- ==========================================
 
-DROP TABLE event_publication;
-DROP TABLE visits;
-DROP TABLE vet_specialties;
-DROP TABLE vets;
-DROP TABLE specialties;
-DROP TABLE pets;
-DROP TABLE types;
-DROP TABLE owners;
+DROP TABLE IF EXISTS event_publication;
+DROP TABLE IF EXISTS visits;
+DROP TABLE IF EXISTS vet_specialties;
+DROP TABLE IF EXISTS vets;
+DROP TABLE IF EXISTS specialties;
+DROP TABLE IF EXISTS pets;
+DROP TABLE IF EXISTS types;
+DROP TABLE IF EXISTS owners;
 
 CREATE TABLE types (
   id   INTEGER IDENTITY PRIMARY KEY,
@@ -88,7 +88,7 @@ CREATE INDEX idx_visits_status ON visits(status);
 -- ==========================================
 
 CREATE TABLE event_publication (
-  id UUID DEFAULT RANDOM_UUID() PRIMARY KEY,
+  id VARCHAR(36) PRIMARY KEY,
   event_type VARCHAR(255) NOT NULL,
   serialized_event LONGVARBINARY NOT NULL,
   listener_id VARCHAR(255) NOT NULL,
