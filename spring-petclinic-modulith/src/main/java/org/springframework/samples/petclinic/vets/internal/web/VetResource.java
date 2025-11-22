@@ -19,11 +19,10 @@ import io.micrometer.core.annotation.Timed;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.samples.petclinic.vets.Vet;
 import org.springframework.samples.petclinic.vets.VetService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * REST controller for managing vets.
@@ -50,5 +49,11 @@ class VetResource {
     @Cacheable("vets")
     public List<Vet> showResourcesVetList() {
         return vetService.findAll();
+    }
+
+    @GetMapping("/{vetId}")
+    public Vet findVet(@PathVariable("vetId") int vetId) {
+        return vetService.findById(vetId)
+            .orElseThrow(() -> new NoSuchElementException("Vet not found with id: " + vetId));
     }
 }

@@ -4,40 +4,80 @@ spring:
   application:
     name: petclinic-modulith-test
   
-  # Use in-memory H2 database for tests
+  # Use in-memory HSQLDB database for tests
   datasource:
     driver-class-name: org.hsqldb.jdbc.JDBCDriver
-    url: jdbc:hsqldb:mem:testdb
+    url: jdbc:hsqldb:mem:testdb;sql.syntax_mys=true
     username: sa
     password: 
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
   
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.HSQLDialect
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
   
   sql:
     init:
       mode: embedded
       platform: hsqldb
+      continue-on-error: true
   
-  # Disable Spring Modulith events persistence for tests
+  # Spring Modulith Configuration for Tests
   modulith:
     events:
       jdbc:
-        enabled: false
+        enabled: true
+        schema: public
+    observability:
+      enabled: true
+  
+  # Test Context Management
+  test:
+    context:
+      cache:
+        maxSize: 32
+      defaultTestExecutionListenerClasses: 
+        - org.springframework.test.context.web.ServletTestExecutionListener
+        - org.springframework.test.context.support.DirtiesContextBeforeModesTestExecutionListener
+        - org.springframework.boot.test.mock.mockito.MockitoTestExecutionListener
+        - org.springframework.boot.test.autoconfigure.restdocs.RestDocsTestExecutionListener
+        - org.springframework.test.context.support.DirtiesContextTestExecutionListener
 
-# Disable actuator endpoints in tests
+# Actuator configuration for tests
 management:
   endpoints:
-    enabled-by-default: false
+    web:
+      exposure:
+        include: health,info,modulith,prometheus
+  endpoint:
+    health:
+      show-details: always
+    modulith:
+      enabled: true
+  metrics:
+    export:
+      simple:
+        enabled: true
 
-# Logging
+# Logging Configuration for Tests
 logging:
   level:
-    org.springframework.samples.petclinic: DEBUG
-    org.springframework.modulith: DEBUG
+    root: WARN
+    org.springframework.samples.petclinic: INFO
+    org.springframework.modulith: INFO
+    org.springframework.boot.test: DEBUG
+    org.springframework.test.context: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
