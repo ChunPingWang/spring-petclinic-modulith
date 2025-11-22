@@ -21,12 +21,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
 import org.springframework.samples.petclinic.vets.Vet;
 import org.springframework.samples.petclinic.vets.VetCreated;
 import org.springframework.samples.petclinic.vets.VetService;
 import org.springframework.samples.petclinic.vets.VetUpdated;
-import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
+import org.springframework.samples.petclinic.vets.business.port.EventPublisher;
+import org.springframework.samples.petclinic.vets.business.port.VetRepository;
+import org.springframework.samples.petclinic.vets.business.service.VetBusinessService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -40,9 +42,10 @@ import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for VetServiceImpl.
- * 
+ *
  * Tests verify business logic, event publishing, and caching behavior.
- * 
+ * Now uses the new three-layer architecture with business service delegation.
+ *
  * @author PetClinic Team
  */
 @ExtendWith(MockitoExtension.class)
@@ -52,20 +55,25 @@ class VetServiceImplTest {
     private VetRepository vetRepository;
 
     @Mock
-    private ApplicationEventPublisher events;
+    private EventPublisher eventPublisher;
 
+    private VetBusinessService businessService;
     private VetService vetService;
 
     @BeforeEach
     void setUp() {
-        vetService = new VetServiceImpl(vetRepository, events);
+        // Create business service with mocked dependencies
+        businessService = new VetBusinessService(vetRepository, eventPublisher);
+
+        // Create service implementation that delegates to business service
+        vetService = new VetServiceImpl(businessService);
     }
 
     @Test
     void shouldFindVetById() {
-        // Given
-        Vet vet = createVet(1, "James", "Carter");
-        given(vetRepository.findById(1)).willReturn(Optional.of(vet));
+        // Given - create domain vet
+        org.springframework.samples.petclinic.vets.domain.Vet domainVet = createDomainVet(1, "James", "Carter");
+        given(vetRepository.findById(1)).willReturn(Optional.of(domainVet));
 
         // When
         Optional<Vet> result = vetService.findById(1);
@@ -90,13 +98,13 @@ class VetServiceImplTest {
 
     @Test
     void shouldFindAllVets() {
-        // Given
-        List<Vet> vets = Arrays.asList(
-            createVet(1, "James", "Carter"),
-            createVet(2, "Helen", "Leary"),
-            createVet(3, "Linda", "Douglas")
+        // Given - create domain vets
+        List<org.springframework.samples.petclinic.vets.domain.Vet> domainVets = Arrays.asList(
+            createDomainVet(1, "James", "Carter"),
+            createDomainVet(2, "Helen", "Leary"),
+            createDomainVet(3, "Linda", "Douglas")
         );
-        given(vetRepository.findAll()).willReturn(vets);
+        given(vetRepository.findAll()).willReturn(domainVets);
 
         // When
         List<Vet> result = vetService.findAll();
@@ -110,11 +118,13 @@ class VetServiceImplTest {
 
     @Test
     void shouldSaveVetAndPublishEvent() {
-        // Given
+        // Given - create legacy vet to save
         Vet vet = createVet(null, "Robert", "Roberts");
-        Vet savedVet = createVet(1, "Robert", "Roberts");
-        
-        given(vetRepository.save(any(Vet.class))).willReturn(savedVet);
+
+        // Mock repository to return domain vet with ID
+        org.springframework.samples.petclinic.vets.domain.Vet savedDomainVet = createDomainVet(1, "Robert", "Roberts");
+        given(vetRepository.save(any(org.springframework.samples.petclinic.vets.domain.Vet.class)))
+                .willReturn(savedDomainVet);
 
         // When
         Vet result = vetService.save(vet);
@@ -122,11 +132,11 @@ class VetServiceImplTest {
         // Then
         assertThat(result.getId()).isEqualTo(1);
         assertThat(result.getFirstName()).isEqualTo("Robert");
-        
+
         // Verify event was published
         ArgumentCaptor<VetCreated> eventCaptor = ArgumentCaptor.forClass(VetCreated.class);
-        verify(events).publishEvent(eventCaptor.capture());
-        
+        verify(eventPublisher).publish(eventCaptor.capture());
+
         VetCreated event = eventCaptor.getValue();
         assertThat(event.vetId()).isEqualTo(1);
         assertThat(event.vetName()).isEqualTo("Robert Roberts");
@@ -134,23 +144,28 @@ class VetServiceImplTest {
 
     @Test
     void shouldUpdateVetAndPublishEvent() {
-        // Given
-        Vet existingVet = createVet(1, "James", "Carter");
+        // Given - existing domain vet
+        org.springframework.samples.petclinic.vets.domain.Vet existingDomainVet = createDomainVet(1, "James", "Carter");
+        given(vetRepository.findById(1)).willReturn(Optional.of(existingDomainVet));
+
+        // Update data as legacy vet
         Vet updateData = createVet(null, "James", "Wilson");  // Changed last name
-        
-        given(vetRepository.findById(1)).willReturn(Optional.of(existingVet));
-        given(vetRepository.save(any(Vet.class))).willReturn(existingVet);
+
+        // Mock save to return updated domain vet
+        org.springframework.samples.petclinic.vets.domain.Vet updatedDomainVet = createDomainVet(1, "James", "Wilson");
+        given(vetRepository.save(any(org.springframework.samples.petclinic.vets.domain.Vet.class)))
+                .willReturn(updatedDomainVet);
 
         // When
         Vet result = vetService.update(1, updateData);
 
         // Then
         assertThat(result.getLastName()).isEqualTo("Wilson");
-        
+
         // Verify event was published
         ArgumentCaptor<VetUpdated> eventCaptor = ArgumentCaptor.forClass(VetUpdated.class);
-        verify(events).publishEvent(eventCaptor.capture());
-        
+        verify(eventPublisher).publish(eventCaptor.capture());
+
         VetUpdated event = eventCaptor.getValue();
         assertThat(event.vetId()).isEqualTo(1);
         assertThat(event.vetName()).isEqualTo("James Wilson");
@@ -171,9 +186,9 @@ class VetServiceImplTest {
 
     @Test
     void shouldDeleteVetById() {
-        // Given
-        Vet vet = createVet(1, "James", "Carter");
-        given(vetRepository.findById(1)).willReturn(Optional.of(vet));
+        // Given - existing domain vet
+        org.springframework.samples.petclinic.vets.domain.Vet domainVet = createDomainVet(1, "James", "Carter");
+        given(vetRepository.findById(1)).willReturn(Optional.of(domainVet));
 
         // When
         vetService.deleteById(1);
@@ -194,8 +209,25 @@ class VetServiceImplTest {
             .hasMessageContaining("999");
     }
 
+    // Helper methods
+
+    /**
+     * Create legacy Vet entity (for input to service methods).
+     */
     private Vet createVet(Integer id, String firstName, String lastName) {
         Vet vet = new Vet();
+        vet.setId(id);
+        vet.setFirstName(firstName);
+        vet.setLastName(lastName);
+        return vet;
+    }
+
+    /**
+     * Create domain Vet model (for mocking repository responses).
+     */
+    private org.springframework.samples.petclinic.vets.domain.Vet createDomainVet(Integer id, String firstName, String lastName) {
+        org.springframework.samples.petclinic.vets.domain.Vet vet =
+                new org.springframework.samples.petclinic.vets.domain.Vet();
         vet.setId(id);
         vet.setFirstName(firstName);
         vet.setLastName(lastName);

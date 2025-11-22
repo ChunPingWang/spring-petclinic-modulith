@@ -18,44 +18,49 @@ package org.springframework.samples.petclinic.vets.internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
 import org.springframework.samples.petclinic.vets.Vet;
-import org.springframework.samples.petclinic.vets.VetCreated;
 import org.springframework.samples.petclinic.vets.VetService;
-import org.springframework.samples.petclinic.vets.VetUpdated;
+import org.springframework.samples.petclinic.vets.business.exception.VetNotFoundException;
+import org.springframework.samples.petclinic.vets.business.service.VetBusinessService;
+import org.springframework.samples.petclinic.vets.infrastructure.persistence.mapper.DomainMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Internal implementation of VetService.
- * 
- * This implementation handles business logic and publishes domain events.
- * 
+ *
+ * This implementation delegates to VetBusinessService and converts between
+ * domain models and public API entities for backward compatibility.
+ *
  * @author PetClinic Team
  */
 @Service
 @Transactional
 class VetServiceImpl implements VetService {
-    
+
     private static final Logger log = LoggerFactory.getLogger(VetServiceImpl.class);
-    
-    private final VetRepository vetRepository;
-    private final ApplicationEventPublisher events;
-    
-    VetServiceImpl(VetRepository vetRepository, ApplicationEventPublisher events) {
-        this.vetRepository = vetRepository;
-        this.events = events;
+
+    private final VetBusinessService businessService;
+
+    VetServiceImpl(VetBusinessService businessService) {
+        this.businessService = businessService;
     }
     
     @Override
     @Transactional(readOnly = true)
     public Optional<Vet> findById(Integer vetId) {
         log.debug("Finding vet by ID: {}", vetId);
-        return vetRepository.findById(vetId);
+
+        // Delegate to business service and convert domain model to legacy entity
+        Optional<org.springframework.samples.petclinic.vets.domain.Vet> domainVet =
+                businessService.findById(vetId);
+
+        return domainVet.map(DomainMapper::toLegacyEntity);
     }
     
     @Override
@@ -63,21 +68,31 @@ class VetServiceImpl implements VetService {
     @Cacheable("vets")
     public List<Vet> findAll() {
         log.debug("Finding all vets");
-        return vetRepository.findAll();
+
+        // Delegate to business service and convert domain models to legacy entities
+        List<org.springframework.samples.petclinic.vets.domain.Vet> domainVets =
+                businessService.findAll();
+
+        return domainVets.stream()
+                .map(DomainMapper::toLegacyEntity)
+                .collect(Collectors.toList());
     }
     
     @Override
     public Vet save(Vet vet) {
         log.info("Creating new vet: {}", vet.getFullName());
-        
-        Vet savedVet = vetRepository.save(vet);
-        
-        // Publish domain event
-        events.publishEvent(new VetCreated(
-            savedVet.getId(), 
-            savedVet.getFullName()
-        ));
-        
+
+        // Convert legacy entity to domain model
+        org.springframework.samples.petclinic.vets.domain.Vet domainVet =
+                DomainMapper.fromLegacyEntity(vet);
+
+        // Delegate to business service (which handles event publishing)
+        org.springframework.samples.petclinic.vets.domain.Vet savedDomainVet =
+                businessService.createVet(domainVet);
+
+        // Convert back to legacy entity
+        Vet savedVet = DomainMapper.toLegacyEntity(savedDomainVet);
+
         log.info("Vet created with ID: {}", savedVet.getId());
         return savedVet;
     }
@@ -85,35 +100,39 @@ class VetServiceImpl implements VetService {
     @Override
     public Vet update(Integer vetId, Vet vet) {
         log.info("Updating vet ID: {}", vetId);
-        
-        Vet existingVet = vetRepository.findById(vetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Vet", vetId));
-        
-        // Update fields
-        existingVet.setFirstName(vet.getFirstName());
-        existingVet.setLastName(vet.getLastName());
-        
-        Vet updatedVet = vetRepository.save(existingVet);
-        
-        // Publish domain event
-        events.publishEvent(new VetUpdated(
-            updatedVet.getId(),
-            updatedVet.getFullName()
-        ));
-        
-        log.info("Vet updated: {}", updatedVet.getId());
-        return updatedVet;
+
+        try {
+            // Convert legacy entity to domain model
+            org.springframework.samples.petclinic.vets.domain.Vet domainVet =
+                    DomainMapper.fromLegacyEntity(vet);
+
+            // Delegate to business service (which handles event publishing)
+            org.springframework.samples.petclinic.vets.domain.Vet updatedDomainVet =
+                    businessService.updateVet(vetId, domainVet);
+
+            // Convert back to legacy entity
+            Vet updatedVet = DomainMapper.toLegacyEntity(updatedDomainVet);
+
+            log.info("Vet updated: {}", updatedVet.getId());
+            return updatedVet;
+        } catch (VetNotFoundException e) {
+            // Convert business exception to API exception for backward compatibility
+            throw new ResourceNotFoundException("Vet", vetId);
+        }
     }
 
     @Override
     public void deleteById(Integer vetId) {
         log.info("Deleting vet ID: {}", vetId);
 
-        Vet existingVet = vetRepository.findById(vetId)
-            .orElseThrow(() -> new ResourceNotFoundException("Vet", vetId));
+        try {
+            // Delegate to business service
+            businessService.deleteVet(vetId);
 
-        vetRepository.deleteById(vetId);
-
-        log.info("Vet deleted: {} {}", existingVet.getFirstName(), existingVet.getLastName());
+            log.info("Vet deleted with ID: {}", vetId);
+        } catch (VetNotFoundException e) {
+            // Convert business exception to API exception for backward compatibility
+            throw new ResourceNotFoundException("Vet", vetId);
+        }
     }
 }
