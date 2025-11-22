@@ -18,19 +18,15 @@ package org.springframework.samples.petclinic.visits.internal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.samples.petclinic.customers.CustomerService;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
-import org.springframework.samples.petclinic.vets.Vet;
-import org.springframework.samples.petclinic.vets.VetService;
 import org.springframework.samples.petclinic.visits.Visit;
-import org.springframework.samples.petclinic.visits.VisitCompleted;
-import org.springframework.samples.petclinic.visits.VisitCreated;
 import org.springframework.samples.petclinic.visits.VisitService;
-import org.springframework.samples.petclinic.customers.Customer;
+import org.springframework.samples.petclinic.visits.business.exception.InvalidVisitException;
+import org.springframework.samples.petclinic.visits.business.exception.VisitNotFoundException;
+import org.springframework.samples.petclinic.visits.business.service.VisitBusinessService;
+import org.springframework.samples.petclinic.visits.domain.VisitStatus;
 
 import java.util.Arrays;
 import java.util.List;
@@ -40,46 +36,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for VisitServiceImpl.
- * 
+ *
  * Tests verify:
- * - Cross-module dependency injection (CustomerService, VetService)
- * - Referential integrity validation
- * - Event publishing
- * - Business logic
- * 
+ * - Delegation to VisitBusinessService
+ * - Conversion between domain models and legacy entities
+ * - Exception translation from business to legacy exceptions
+ *
  * @author PetClinic Team
  */
 @ExtendWith(MockitoExtension.class)
 class VisitServiceImplTest {
 
     @Mock
-    private VisitRepository visitRepository;
-
-    @Mock
-    private CustomerService customerService;
-
-    @Mock
-    private VetService vetService;
-
-    @Mock
-    private ApplicationEventPublisher events;
+    private VisitBusinessService businessService;
 
     private VisitService visitService;
 
     @BeforeEach
     void setUp() {
-        visitService = new VisitServiceImpl(visitRepository, customerService, vetService, events);
+        visitService = new VisitServiceImpl(businessService);
     }
 
     @Test
     void shouldFindVisitById() {
         // Given
-        Visit visit = createVisit(1, 1, 1, "Routine checkup", "COMPLETED");
-        given(visitRepository.findById(1)).willReturn(Optional.of(visit));
+        org.springframework.samples.petclinic.visits.domain.Visit domainVisit = createDomainVisit(1, 1, 1, "Routine checkup", VisitStatus.COMPLETED);
+        given(businessService.findById(1)).willReturn(Optional.of(domainVisit));
 
         // When
         Optional<Visit> result = visitService.findById(1);
@@ -88,28 +75,31 @@ class VisitServiceImplTest {
         assertThat(result).isPresent();
         assertThat(result.get().getPetId()).isEqualTo(1);
         assertThat(result.get().getVetId()).isEqualTo(1);
+        assertThat(result.get().getStatus()).isEqualTo("COMPLETED");
+        verify(businessService).findById(1);
     }
 
     @Test
     void shouldReturnEmptyWhenVisitNotFound() {
         // Given
-        given(visitRepository.findById(999)).willReturn(Optional.empty());
+        given(businessService.findById(999)).willReturn(Optional.empty());
 
         // When
         Optional<Visit> result = visitService.findById(999);
 
         // Then
         assertThat(result).isEmpty();
+        verify(businessService).findById(999);
     }
 
     @Test
     void shouldFindAllVisits() {
         // Given
-        List<Visit> visits = Arrays.asList(
-            createVisit(1, 1, 1, "Checkup", "COMPLETED"),
-            createVisit(2, 2, 2, "Vaccination", "SCHEDULED")
+        List<org.springframework.samples.petclinic.visits.domain.Visit> domainVisits = Arrays.asList(
+            createDomainVisit(1, 1, 1, "Checkup", VisitStatus.COMPLETED),
+            createDomainVisit(2, 2, 2, "Vaccination", VisitStatus.SCHEDULED)
         );
-        given(visitRepository.findAll()).willReturn(visits);
+        given(businessService.findAll()).willReturn(domainVisits);
 
         // When
         List<Visit> result = visitService.findAll();
@@ -118,16 +108,17 @@ class VisitServiceImplTest {
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getId()).isEqualTo(1);
         assertThat(result.get(1).getId()).isEqualTo(2);
+        verify(businessService).findAll();
     }
 
     @Test
     void shouldFindVisitsByPetId() {
         // Given
-        List<Visit> visits = Arrays.asList(
-            createVisit(1, 1, 1, "Checkup", "COMPLETED"),
-            createVisit(3, 1, 2, "Vaccination", "SCHEDULED")
+        List<org.springframework.samples.petclinic.visits.domain.Visit> domainVisits = Arrays.asList(
+            createDomainVisit(1, 1, 1, "Checkup", VisitStatus.COMPLETED),
+            createDomainVisit(3, 1, 2, "Vaccination", VisitStatus.SCHEDULED)
         );
-        given(visitRepository.findByPetId(1)).willReturn(visits);
+        given(businessService.findByPetId(1)).willReturn(domainVisits);
 
         // When
         List<Visit> result = visitService.findByPetId(1);
@@ -135,16 +126,17 @@ class VisitServiceImplTest {
         // Then
         assertThat(result).hasSize(2);
         assertThat(result.stream().allMatch(v -> v.getPetId().equals(1))).isTrue();
+        verify(businessService).findByPetId(1);
     }
 
     @Test
     void shouldFindVisitsByVetId() {
         // Given
-        List<Visit> visits = Arrays.asList(
-            createVisit(1, 1, 1, "Checkup", "COMPLETED"),
-            createVisit(4, 3, 1, "Skin follow-up", "SCHEDULED")
+        List<org.springframework.samples.petclinic.visits.domain.Visit> domainVisits = Arrays.asList(
+            createDomainVisit(1, 1, 1, "Checkup", VisitStatus.COMPLETED),
+            createDomainVisit(4, 3, 1, "Skin follow-up", VisitStatus.SCHEDULED)
         );
-        given(visitRepository.findByVetId(1)).willReturn(visits);
+        given(businessService.findByVetId(1)).willReturn(domainVisits);
 
         // When
         List<Visit> result = visitService.findByVetId(1);
@@ -152,149 +144,103 @@ class VisitServiceImplTest {
         // Then
         assertThat(result).hasSize(2);
         assertThat(result.stream().allMatch(v -> v.getVetId().equals(1))).isTrue();
+        verify(businessService).findByVetId(1);
     }
 
     @Test
-    void shouldScheduleVisitWithCrossModuleValidation() {
+    void shouldScheduleVisit() {
         // Given
-        Visit visit = new Visit(1, 1);
-        visit.setDescription("Routine checkup");
-        
-        Visit savedVisit = createVisit(1, 1, 1, "Routine checkup", "SCHEDULED");
-        
-        // Mock cross-module dependencies
-        Customer customer = new Customer();
-        customer.setId(1);
-        given(customerService.findById(1)).willReturn(Optional.of(customer));
-        
-        Vet vet = new Vet();
-        vet.setId(1);
-        given(vetService.findById(1)).willReturn(Optional.of(vet));
-        
-        given(visitRepository.save(any(Visit.class))).willReturn(savedVisit);
+        Visit legacyVisit = new Visit(1, 1);
+        legacyVisit.setDescription("Routine checkup");
+
+        org.springframework.samples.petclinic.visits.domain.Visit scheduledDomainVisit =
+            createDomainVisit(1, 1, 1, "Routine checkup", VisitStatus.SCHEDULED);
+
+        given(businessService.scheduleVisit(any(org.springframework.samples.petclinic.visits.domain.Visit.class)))
+            .willReturn(scheduledDomainVisit);
 
         // When
-        Visit result = visitService.scheduleVisit(visit);
+        Visit result = visitService.scheduleVisit(legacyVisit);
 
         // Then
         assertThat(result.getId()).isEqualTo(1);
         assertThat(result.getStatus()).isEqualTo("SCHEDULED");
-        
-        // Verify cross-module calls
-        verify(customerService).findById(1);
-        verify(vetService).findById(1);
-        
-        // Verify event publishing
-        ArgumentCaptor<VisitCreated> eventCaptor = ArgumentCaptor.forClass(VisitCreated.class);
-        verify(events).publishEvent(eventCaptor.capture());
-        
-        VisitCreated event = eventCaptor.getValue();
-        assertThat(event.visitId()).isEqualTo(1);
-        assertThat(event.petId()).isEqualTo(1);
-        assertThat(event.vetId()).isEqualTo(1);
+        verify(businessService).scheduleVisit(any(org.springframework.samples.petclinic.visits.domain.Visit.class));
     }
 
     @Test
-    void shouldThrowExceptionWhenPetNotFoundDuringScheduling() {
+    void shouldTranslateInvalidVisitException() {
         // Given
-        Visit visit = new Visit(999, 1);  // Non-existent pet
-        visit.setDescription("Routine checkup");
-        
-        given(customerService.findById(999)).willReturn(Optional.empty());
+        Visit legacyVisit = new Visit(999, 1);
+        legacyVisit.setDescription("Test");
+
+        given(businessService.scheduleVisit(any(org.springframework.samples.petclinic.visits.domain.Visit.class)))
+            .willThrow(new InvalidVisitException("Pet not found: 999"));
 
         // When/Then
-        assertThatThrownBy(() -> visitService.scheduleVisit(visit))
+        assertThatThrownBy(() -> visitService.scheduleVisit(legacyVisit))
             .isInstanceOf(ResourceNotFoundException.class)
-            .hasMessageContaining("Pet")
-            .hasMessageContaining("999");
+            .hasMessageContaining("Pet not found: 999");
     }
 
     @Test
-    void shouldThrowExceptionWhenVetNotFoundDuringScheduling() {
+    void shouldCompleteVisit() {
         // Given
-        Visit visit = new Visit(1, 999);  // Non-existent vet
-        visit.setDescription("Routine checkup");
-        
-        Customer customer = new Customer();
-        customer.setId(1);
-        given(customerService.findById(1)).willReturn(Optional.of(customer));
-        given(vetService.findById(999)).willReturn(Optional.empty());
+        org.springframework.samples.petclinic.visits.domain.Visit completedDomainVisit =
+            createDomainVisit(1, 1, 1, "Checkup", VisitStatus.COMPLETED);
 
-        // When/Then
-        assertThatThrownBy(() -> visitService.scheduleVisit(visit))
-            .isInstanceOf(ResourceNotFoundException.class)
-            .hasMessageContaining("Vet")
-            .hasMessageContaining("999");
-    }
-
-    @Test
-    void shouldCompleteVisitAndPublishEvent() {
-        // Given
-        Visit visit = createVisit(1, 1, 1, "Checkup", "SCHEDULED");
-        Visit completedVisit = createVisit(1, 1, 1, "Checkup", "COMPLETED");
-        
-        given(visitRepository.findById(1)).willReturn(Optional.of(visit));
-        given(visitRepository.save(any(Visit.class))).willReturn(completedVisit);
+        given(businessService.completeVisit(1)).willReturn(completedDomainVisit);
 
         // When
         Visit result = visitService.completeVisit(1);
 
         // Then
         assertThat(result.getStatus()).isEqualTo("COMPLETED");
-        
-        // Verify event
-        ArgumentCaptor<VisitCompleted> eventCaptor = ArgumentCaptor.forClass(VisitCompleted.class);
-        verify(events).publishEvent(eventCaptor.capture());
-        
-        VisitCompleted event = eventCaptor.getValue();
-        assertThat(event.visitId()).isEqualTo(1);
+        verify(businessService).completeVisit(1);
+    }
+
+    @Test
+    void shouldTranslateVisitNotFoundExceptionOnComplete() {
+        // Given
+        given(businessService.completeVisit(999))
+            .willThrow(new VisitNotFoundException("Visit not found", 999));
+
+        // When/Then
+        assertThatThrownBy(() -> visitService.completeVisit(999))
+            .isInstanceOf(ResourceNotFoundException.class)
+            .hasMessageContaining("Visit not found");
     }
 
     @Test
     void shouldCancelVisit() {
-        // Given
-        Visit visit = createVisit(1, 1, 1, "Checkup", "SCHEDULED");
-        given(visitRepository.findById(1)).willReturn(Optional.of(visit));
-        given(visitRepository.save(any(Visit.class))).willReturn(visit);
+        // Given - business service returns void
 
         // When
         visitService.cancelVisit(1);
 
         // Then
-        ArgumentCaptor<Visit> visitCaptor = ArgumentCaptor.forClass(Visit.class);
-        verify(visitRepository).save(visitCaptor.capture());
-
-        Visit saved = visitCaptor.getValue();
-        assertThat(saved.getStatus()).isEqualTo("CANCELLED");
+        verify(businessService).cancelVisit(1);
     }
 
     @Test
-    void shouldThrowExceptionWhenCompletingNonExistentVisit() {
-        // Given
-        given(visitRepository.findById(999)).willReturn(Optional.empty());
-
-        // When/Then
-        assertThatThrownBy(() -> visitService.completeVisit(999))
-            .isInstanceOf(ResourceNotFoundException.class)
-            .hasMessageContaining("Visit")
-            .hasMessageContaining("999");
-    }
-
-    @Test
-    void shouldThrowExceptionWhenCancellingNonExistentVisit() {
-        // Given
-        given(visitRepository.findById(999)).willReturn(Optional.empty());
+    void shouldTranslateVisitNotFoundExceptionOnCancel() {
+        // Given - mock void method to throw exception using willThrow()
+        willThrow(new VisitNotFoundException("Visit not found", 999))
+            .given(businessService).cancelVisit(999);
 
         // When/Then
         assertThatThrownBy(() -> visitService.cancelVisit(999))
             .isInstanceOf(ResourceNotFoundException.class)
-            .hasMessageContaining("Visit")
-            .hasMessageContaining("999");
+            .hasMessageContaining("Visit not found");
     }
 
-    private Visit createVisit(Integer id, Integer petId, Integer vetId, String description, String status) {
-        Visit visit = new Visit(petId, vetId);
+    private org.springframework.samples.petclinic.visits.domain.Visit createDomainVisit(
+            Integer id, Integer petId, Integer vetId, String description, VisitStatus status) {
+        org.springframework.samples.petclinic.visits.domain.Visit visit =
+            new org.springframework.samples.petclinic.visits.domain.Visit();
         visit.setId(id);
+        visit.setPetId(petId);
+        visit.setVetId(vetId);
         visit.setDescription(description);
         visit.setStatus(status);
         return visit;

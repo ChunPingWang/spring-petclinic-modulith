@@ -17,29 +17,26 @@ package org.springframework.samples.petclinic.visits.internal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.samples.petclinic.customers.CustomerService;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
-import org.springframework.samples.petclinic.vets.VetService;
 import org.springframework.samples.petclinic.visits.Visit;
-import org.springframework.samples.petclinic.visits.VisitCompleted;
-import org.springframework.samples.petclinic.visits.VisitCreated;
 import org.springframework.samples.petclinic.visits.VisitService;
+import org.springframework.samples.petclinic.visits.business.exception.InvalidVisitException;
+import org.springframework.samples.petclinic.visits.business.exception.VisitNotFoundException;
+import org.springframework.samples.petclinic.visits.business.service.VisitBusinessService;
+import org.springframework.samples.petclinic.visits.infrastructure.persistence.mapper.DomainMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
- * Implementation of VisitService demonstrating cross-module communication.
- * 
- * This service:
- * - Depends on CustomerService (customers module)
- * - Depends on VetService (vets module)
- * - Publishes events for other modules to consume
- * - Validates referential integrity across modules
- * 
+ * Internal implementation of VisitService.
+ *
+ * This implementation delegates to VisitBusinessService and converts between
+ * domain models and public API entities for backward compatibility.
+ *
  * @author PetClinic Team
  */
 @Service
@@ -48,114 +45,103 @@ class VisitServiceImpl implements VisitService {
 
     private static final Logger log = LoggerFactory.getLogger(VisitServiceImpl.class);
 
-    private final VisitRepository visitRepository;
-    private final CustomerService customerService;
-    private final VetService vetService;
-    private final ApplicationEventPublisher events;
+    private final VisitBusinessService businessService;
 
-    /**
-     * Cross-module dependency injection demonstrating Modulith patterns.
-     * 
-     * All dependencies are public APIs from other modules:
-     * - CustomerService from customers module
-     * - VetService from vets module
-     */
-    VisitServiceImpl(VisitRepository visitRepository,
-                    CustomerService customerService,
-                    VetService vetService,
-                    ApplicationEventPublisher events) {
-        this.visitRepository = visitRepository;
-        this.customerService = customerService;
-        this.vetService = vetService;
-        this.events = events;
+    VisitServiceImpl(VisitBusinessService businessService) {
+        this.businessService = businessService;
     }
 
     @Override
     public Optional<Visit> findById(Integer id) {
         log.debug("Finding visit by id: {}", id);
-        return visitRepository.findById(id);
+        Optional<org.springframework.samples.petclinic.visits.domain.Visit> domainVisit =
+            businessService.findById(id);
+        return domainVisit.map(DomainMapper::toLegacyEntity);
     }
 
     @Override
     public List<Visit> findAll() {
         log.debug("Finding all visits");
-        return visitRepository.findAll();
+        List<org.springframework.samples.petclinic.visits.domain.Visit> domainVisits =
+            businessService.findAll();
+        return domainVisits.stream()
+                .map(DomainMapper::toLegacyEntity)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<Visit> findByPetId(Integer petId) {
         log.debug("Finding visits for pet: {}", petId);
-        // Note: We don't validate pet existence here to allow flexible queries
-        // Validation happens during visit scheduling
-        return visitRepository.findByPetId(petId);
+        List<org.springframework.samples.petclinic.visits.domain.Visit> domainVisits =
+            businessService.findByPetId(petId);
+        return domainVisits.stream()
+                .map(DomainMapper::toLegacyEntity)
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<Visit> findByVetId(Integer vetId) {
         log.debug("Finding visits for vet: {}", vetId);
-        // Note: We don't validate vet existence here to allow flexible queries
-        return visitRepository.findByVetId(vetId);
+        List<org.springframework.samples.petclinic.visits.domain.Visit> domainVisits =
+            businessService.findByVetId(vetId);
+        return domainVisits.stream()
+                .map(DomainMapper::toLegacyEntity)
+                .collect(Collectors.toList());
     }
 
     @Override
     public Visit scheduleVisit(Visit visit) {
         log.info("Scheduling visit for pet {} with vet {}", visit.getPetId(), visit.getVetId());
-        
-        // Validate that the pet exists (cross-module dependency)
-        if (!customerService.findById(visit.getPetId()).isPresent()) {
-            throw new ResourceNotFoundException("Pet not found: " + visit.getPetId());
+
+        try {
+            // Convert legacy entity to domain model
+            org.springframework.samples.petclinic.visits.domain.Visit domainVisit =
+                DomainMapper.fromLegacyEntity(visit);
+
+            // Delegate to business service
+            org.springframework.samples.petclinic.visits.domain.Visit scheduledVisit =
+                businessService.scheduleVisit(domainVisit);
+
+            log.info("Visit scheduled: {}", scheduledVisit.getId());
+
+            // Convert back to legacy entity
+            return DomainMapper.toLegacyEntity(scheduledVisit);
+
+        } catch (InvalidVisitException e) {
+            // Convert business exception to legacy exception
+            throw new ResourceNotFoundException(e.getMessage());
         }
-        
-        // Validate that the vet exists (cross-module dependency)
-        if (!vetService.findById(visit.getVetId()).isPresent()) {
-            throw new ResourceNotFoundException("Vet not found: " + visit.getVetId());
-        }
-        
-        // Set status to SCHEDULED
-        visit.setStatus("SCHEDULED");
-        
-        // Save visit
-        Visit savedVisit = visitRepository.save(visit);
-        log.info("Visit scheduled: {}", savedVisit.getId());
-        
-        // Publish event for other modules (e.g., genai module)
-        events.publishEvent(new VisitCreated(
-            savedVisit.getId(),
-            savedVisit.getPetId(),
-            savedVisit.getVetId()
-        ));
-        
-        return savedVisit;
     }
 
     @Override
     public Visit completeVisit(Integer visitId) {
         log.info("Completing visit: {}", visitId);
-        
-        Visit visit = visitRepository.findById(visitId)
-            .orElseThrow(() -> new ResourceNotFoundException("Visit not found: " + visitId));
-        
-        visit.setStatus("COMPLETED");
-        Visit completedVisit = visitRepository.save(visit);
-        
-        // Publish completion event
-        events.publishEvent(new VisitCompleted(
-            completedVisit.getId(),
-            completedVisit.getPetId(),
-            completedVisit.getVetId()
-        ));
-        
-        return completedVisit;
+
+        try {
+            // Delegate to business service
+            org.springframework.samples.petclinic.visits.domain.Visit completedVisit =
+                businessService.completeVisit(visitId);
+
+            // Convert back to legacy entity
+            return DomainMapper.toLegacyEntity(completedVisit);
+
+        } catch (VisitNotFoundException e) {
+            // Convert business exception to legacy exception
+            throw new ResourceNotFoundException(e.getMessage());
+        }
     }
 
     @Override
     public void cancelVisit(Integer visitId) {
         log.info("Cancelling visit: {}", visitId);
-        
-        Visit visit = visitRepository.findById(visitId)
-            .orElseThrow(() -> new ResourceNotFoundException("Visit not found: " + visitId));
-        
-        visit.setStatus("CANCELLED");
-        visitRepository.save(visit);
+
+        try {
+            // Delegate to business service
+            businessService.cancelVisit(visitId);
+
+        } catch (VisitNotFoundException e) {
+            // Convert business exception to legacy exception
+            throw new ResourceNotFoundException(e.getMessage());
+        }
     }
 }
