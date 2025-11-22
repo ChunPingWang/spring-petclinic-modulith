@@ -17,111 +17,114 @@ package org.springframework.samples.petclinic.customers.internal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.samples.petclinic.customers.Customer;
-import org.springframework.samples.petclinic.customers.CustomerCreated;
-import org.springframework.samples.petclinic.customers.CustomerDeleted;
 import org.springframework.samples.petclinic.customers.CustomerService;
-import org.springframework.samples.petclinic.customers.CustomerUpdated;
+import org.springframework.samples.petclinic.customers.business.exception.CustomerNotFoundException;
+import org.springframework.samples.petclinic.customers.business.service.CustomerBusinessService;
+import org.springframework.samples.petclinic.customers.infrastructure.persistence.mapper.DomainMapper;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Internal implementation of CustomerService.
- * 
- * This implementation handles business logic and publishes domain events.
- * 
+ *
+ * This implementation delegates to the pure Java business layer (CustomerBusinessService)
+ * while maintaining backward compatibility with the existing public API.
+ * It converts between the old Customer entity and new domain model.
+ *
  * @author PetClinic Team
  */
 @Service
 @Transactional
 class CustomerServiceImpl implements CustomerService {
-    
+
     private static final Logger log = LoggerFactory.getLogger(CustomerServiceImpl.class);
-    
-    private final CustomerRepository customerRepository;
-    private final ApplicationEventPublisher events;
-    
-    CustomerServiceImpl(CustomerRepository customerRepository, ApplicationEventPublisher events) {
-        this.customerRepository = customerRepository;
-        this.events = events;
+
+    private final CustomerBusinessService businessService;
+
+    CustomerServiceImpl(CustomerBusinessService businessService) {
+        this.businessService = businessService;
     }
     
     @Override
     @Transactional(readOnly = true)
     public Optional<Customer> findById(Integer customerId) {
         log.debug("Finding customer by ID: {}", customerId);
-        return customerRepository.findById(customerId);
+
+        // Delegate to business layer and convert domain model to legacy entity
+        return businessService.findById(customerId)
+                .map(DomainMapper::toLegacyEntity);
     }
-    
+
     @Override
     @Transactional(readOnly = true)
     public List<Customer> findAll() {
         log.debug("Finding all customers");
-        return customerRepository.findAll();
+
+        // Delegate to business layer and convert domain models to legacy entities
+        return businessService.findAll().stream()
+                .map(DomainMapper::toLegacyEntity)
+                .collect(Collectors.toList());
     }
-    
+
     @Override
     public Customer save(Customer customer) {
         log.info("Creating new customer: {}", customer.getFullName());
-        
-        Customer savedCustomer = customerRepository.save(customer);
-        
-        // Publish domain event
-        events.publishEvent(new CustomerCreated(
-            savedCustomer.getId(), 
-            savedCustomer.getFullName()
-        ));
-        
+
+        // Convert legacy entity to domain model
+        org.springframework.samples.petclinic.customers.domain.Customer domainCustomer =
+                DomainMapper.fromLegacyEntity(customer);
+
+        // Delegate to business layer
+        org.springframework.samples.petclinic.customers.domain.Customer savedDomainCustomer =
+                businessService.createCustomer(domainCustomer);
+
+        // Convert back to legacy entity
+        Customer savedCustomer = DomainMapper.toLegacyEntity(savedDomainCustomer);
+
         log.info("Customer created with ID: {}", savedCustomer.getId());
         return savedCustomer;
     }
-    
+
     @Override
     public Customer update(Integer customerId, Customer customer) {
         log.info("Updating customer ID: {}", customerId);
 
-        Customer existingCustomer = customerRepository.findById(customerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Customer", customerId));
+        // Convert legacy entity to domain model
+        org.springframework.samples.petclinic.customers.domain.Customer domainCustomer =
+                DomainMapper.fromLegacyEntity(customer);
 
-        // Update fields
-        existingCustomer.setFirstName(customer.getFirstName());
-        existingCustomer.setLastName(customer.getLastName());
-        existingCustomer.setAddress(customer.getAddress());
-        existingCustomer.setCity(customer.getCity());
-        existingCustomer.setTelephone(customer.getTelephone());
+        try {
+            // Delegate to business layer
+            org.springframework.samples.petclinic.customers.domain.Customer updatedDomainCustomer =
+                    businessService.updateCustomer(customerId, domainCustomer);
 
-        Customer updatedCustomer = customerRepository.save(existingCustomer);
+            // Convert back to legacy entity
+            Customer updatedCustomer = DomainMapper.toLegacyEntity(updatedDomainCustomer);
 
-        // Publish domain event
-        events.publishEvent(new CustomerUpdated(
-            updatedCustomer.getId(),
-            updatedCustomer.getFullName()
-        ));
-
-        log.info("Customer updated: {}", updatedCustomer.getId());
-        return updatedCustomer;
+            log.info("Customer updated: {}", updatedCustomer.getId());
+            return updatedCustomer;
+        } catch (CustomerNotFoundException e) {
+            throw new ResourceNotFoundException("Customer", customerId);
+        }
     }
 
     @Override
     public void deleteById(Integer customerId) {
         log.info("Deleting customer ID: {}", customerId);
 
-        Customer existingCustomer = customerRepository.findById(customerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Customer", customerId));
+        try {
+            // Delegate to business layer
+            businessService.deleteCustomer(customerId);
 
-        customerRepository.deleteById(customerId);
-
-        // Publish domain event
-        events.publishEvent(new CustomerDeleted(
-            existingCustomer.getId(),
-            existingCustomer.getFullName()
-        ));
-
-        log.info("Customer deleted: {} {}", existingCustomer.getFirstName(), existingCustomer.getLastName());
+            log.info("Customer deleted: {}", customerId);
+        } catch (CustomerNotFoundException e) {
+            throw new ResourceNotFoundException("Customer", customerId);
+        }
     }
 }

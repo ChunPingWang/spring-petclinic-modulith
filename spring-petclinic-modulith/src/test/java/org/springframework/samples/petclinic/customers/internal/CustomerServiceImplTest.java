@@ -21,12 +21,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.samples.petclinic.customers.Customer;
 import org.springframework.samples.petclinic.customers.CustomerCreated;
 import org.springframework.samples.petclinic.customers.CustomerDeleted;
 import org.springframework.samples.petclinic.customers.CustomerService;
 import org.springframework.samples.petclinic.customers.CustomerUpdated;
+import org.springframework.samples.petclinic.customers.business.exception.CustomerNotFoundException;
+import org.springframework.samples.petclinic.customers.business.port.CustomerRepository;
+import org.springframework.samples.petclinic.customers.business.port.EventPublisher;
+import org.springframework.samples.petclinic.customers.business.service.CustomerBusinessService;
+import org.springframework.samples.petclinic.customers.infrastructure.persistence.mapper.DomainMapper;
 import org.springframework.samples.petclinic.shared.exceptions.ResourceNotFoundException;
 
 import java.util.Arrays;
@@ -37,13 +41,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 /**
  * Unit tests for CustomerServiceImpl.
- * 
- * Tests verify business logic and event publishing.
- * 
+ *
+ * Tests verify business logic integration with the new three-layer architecture.
+ * This test now uses the CustomerBusinessService with adapters.
+ *
  * @author PetClinic Team
  */
 @ExtendWith(MockitoExtension.class)
@@ -53,20 +59,23 @@ class CustomerServiceImplTest {
     private CustomerRepository customerRepository;
 
     @Mock
-    private ApplicationEventPublisher events;
+    private EventPublisher eventPublisher;
 
+    private CustomerBusinessService businessService;
     private CustomerService customerService;
 
     @BeforeEach
     void setUp() {
-        customerService = new CustomerServiceImpl(customerRepository, events);
+        businessService = new CustomerBusinessService(customerRepository, eventPublisher);
+        customerService = new CustomerServiceImpl(businessService);
     }
 
     @Test
     void shouldFindCustomerById() {
         // Given
-        Customer customer = createCustomer(1, "George", "Franklin");
-        given(customerRepository.findById(1)).willReturn(Optional.of(customer));
+        org.springframework.samples.petclinic.customers.domain.Customer domainCustomer =
+                createDomainCustomer(1, "George", "Franklin");
+        given(customerRepository.findById(1)).willReturn(Optional.of(domainCustomer));
 
         // When
         Optional<Customer> result = customerService.findById(1);
@@ -92,11 +101,11 @@ class CustomerServiceImplTest {
     @Test
     void shouldFindAllCustomers() {
         // Given
-        List<Customer> customers = Arrays.asList(
-            createCustomer(1, "George", "Franklin"),
-            createCustomer(2, "Betty", "Davis")
+        List<org.springframework.samples.petclinic.customers.domain.Customer> domainCustomers = Arrays.asList(
+            createDomainCustomer(1, "George", "Franklin"),
+            createDomainCustomer(2, "Betty", "Davis")
         );
-        given(customerRepository.findAll()).willReturn(customers);
+        given(customerRepository.findAll()).willReturn(domainCustomers);
 
         // When
         List<Customer> result = customerService.findAll();
@@ -110,63 +119,71 @@ class CustomerServiceImplTest {
     @Test
     void shouldSaveCustomerAndPublishEvent() {
         // Given
-        Customer customer = createCustomer(null, "John", "Doe");
-        Customer savedCustomer = createCustomer(1, "John", "Doe");
-        
-        given(customerRepository.save(any(Customer.class))).willReturn(savedCustomer);
+        Customer legacyCustomer = createLegacyCustomer(null, "John", "Doe");
+        org.springframework.samples.petclinic.customers.domain.Customer savedDomainCustomer =
+                createDomainCustomer(1, "John", "Doe");
+
+        given(customerRepository.save(any(org.springframework.samples.petclinic.customers.domain.Customer.class)))
+                .willReturn(savedDomainCustomer);
 
         // When
-        Customer result = customerService.save(customer);
+        Customer result = customerService.save(legacyCustomer);
 
         // Then
         assertThat(result.getId()).isEqualTo(1);
         assertThat(result.getFirstName()).isEqualTo("John");
-        
+
         // Verify event was published
-        ArgumentCaptor<CustomerCreated> eventCaptor = ArgumentCaptor.forClass(CustomerCreated.class);
-        verify(events).publishEvent(eventCaptor.capture());
-        
-        CustomerCreated event = eventCaptor.getValue();
-        assertThat(event.customerId()).isEqualTo(1);
-        assertThat(event.customerName()).isEqualTo("John Doe");
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publish(eventCaptor.capture());
+
+        Object event = eventCaptor.getValue();
+        assertThat(event).isInstanceOf(CustomerCreated.class);
+        CustomerCreated customerCreatedEvent = (CustomerCreated) event;
+        assertThat(customerCreatedEvent.customerId()).isEqualTo(1);
+        assertThat(customerCreatedEvent.customerName()).isEqualTo("John Doe");
     }
 
     @Test
     void shouldUpdateCustomerAndPublishEvent() {
         // Given
-        Customer existingCustomer = createCustomer(1, "George", "Franklin");
-        Customer updateData = createCustomer(null, "George", "Washington");
-        updateData.setAddress("New Address");
-        updateData.setCity("New City");
-        updateData.setTelephone("1234567890");
-        
-        given(customerRepository.findById(1)).willReturn(Optional.of(existingCustomer));
-        given(customerRepository.save(any(Customer.class))).willReturn(existingCustomer);
+        org.springframework.samples.petclinic.customers.domain.Customer existingDomainCustomer =
+                createDomainCustomer(1, "George", "Franklin");
+        Customer legacyUpdateData = createLegacyCustomer(null, "George", "Washington");
+        legacyUpdateData.setAddress("New Address");
+        legacyUpdateData.setCity("New City");
+        legacyUpdateData.setTelephone("1234567890");
+
+        given(customerRepository.findById(1)).willReturn(Optional.of(existingDomainCustomer));
+        given(customerRepository.save(any(org.springframework.samples.petclinic.customers.domain.Customer.class)))
+                .willReturn(existingDomainCustomer);
 
         // When
-        Customer result = customerService.update(1, updateData);
+        Customer result = customerService.update(1, legacyUpdateData);
 
         // Then
         assertThat(result.getLastName()).isEqualTo("Washington");
         assertThat(result.getAddress()).isEqualTo("New Address");
-        
+
         // Verify event was published
-        ArgumentCaptor<CustomerUpdated> eventCaptor = ArgumentCaptor.forClass(CustomerUpdated.class);
-        verify(events).publishEvent(eventCaptor.capture());
-        
-        CustomerUpdated event = eventCaptor.getValue();
-        assertThat(event.customerId()).isEqualTo(1);
-        assertThat(event.customerName()).isEqualTo("George Washington");
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publish(eventCaptor.capture());
+
+        Object event = eventCaptor.getValue();
+        assertThat(event).isInstanceOf(CustomerUpdated.class);
+        CustomerUpdated customerUpdatedEvent = (CustomerUpdated) event;
+        assertThat(customerUpdatedEvent.customerId()).isEqualTo(1);
+        assertThat(customerUpdatedEvent.customerName()).isEqualTo("George Washington");
     }
 
     @Test
     void shouldThrowExceptionWhenUpdatingNonExistentCustomer() {
         // Given
-        Customer updateData = createCustomer(null, "John", "Doe");
+        Customer legacyUpdateData = createLegacyCustomer(null, "John", "Doe");
         given(customerRepository.findById(999)).willReturn(Optional.empty());
 
         // When/Then
-        assertThatThrownBy(() -> customerService.update(999, updateData))
+        assertThatThrownBy(() -> customerService.update(999, legacyUpdateData))
             .isInstanceOf(ResourceNotFoundException.class)
             .hasMessageContaining("Customer")
             .hasMessageContaining("999");
@@ -175,8 +192,9 @@ class CustomerServiceImplTest {
     @Test
     void shouldDeleteCustomerAndPublishEvent() {
         // Given
-        Customer customer = createCustomer(1, "George", "Franklin");
-        given(customerRepository.findById(1)).willReturn(Optional.of(customer));
+        org.springframework.samples.petclinic.customers.domain.Customer domainCustomer =
+                createDomainCustomer(1, "George", "Franklin");
+        given(customerRepository.findById(1)).willReturn(Optional.of(domainCustomer));
 
         // When
         customerService.deleteById(1);
@@ -185,12 +203,14 @@ class CustomerServiceImplTest {
         verify(customerRepository).deleteById(1);
 
         // Verify event was published
-        ArgumentCaptor<CustomerDeleted> eventCaptor = ArgumentCaptor.forClass(CustomerDeleted.class);
-        verify(events).publishEvent(eventCaptor.capture());
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher).publish(eventCaptor.capture());
 
-        CustomerDeleted event = eventCaptor.getValue();
-        assertThat(event.customerId()).isEqualTo(1);
-        assertThat(event.customerName()).isEqualTo("George Franklin");
+        Object event = eventCaptor.getValue();
+        assertThat(event).isInstanceOf(CustomerDeleted.class);
+        CustomerDeleted customerDeletedEvent = (CustomerDeleted) event;
+        assertThat(customerDeletedEvent.customerId()).isEqualTo(1);
+        assertThat(customerDeletedEvent.customerName()).isEqualTo("George Franklin");
     }
 
     @Test
@@ -205,8 +225,21 @@ class CustomerServiceImplTest {
             .hasMessageContaining("999");
     }
 
-    private Customer createCustomer(Integer id, String firstName, String lastName) {
+    private Customer createLegacyCustomer(Integer id, String firstName, String lastName) {
         Customer customer = new Customer();
+        customer.setId(id);
+        customer.setFirstName(firstName);
+        customer.setLastName(lastName);
+        customer.setAddress("123 Main St");
+        customer.setCity("Springfield");
+        customer.setTelephone("1234567890");
+        return customer;
+    }
+
+    private org.springframework.samples.petclinic.customers.domain.Customer createDomainCustomer(
+            Integer id, String firstName, String lastName) {
+        org.springframework.samples.petclinic.customers.domain.Customer customer =
+                new org.springframework.samples.petclinic.customers.domain.Customer();
         customer.setId(id);
         customer.setFirstName(firstName);
         customer.setLastName(lastName);
