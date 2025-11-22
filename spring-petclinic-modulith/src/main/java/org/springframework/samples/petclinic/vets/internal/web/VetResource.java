@@ -16,7 +16,13 @@
 package org.springframework.samples.petclinic.vets.internal.web;
 
 import io.micrometer.core.annotation.Timed;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.samples.petclinic.vets.Vet;
 import org.springframework.samples.petclinic.vets.VetService;
 import org.springframework.web.bind.annotation.*;
@@ -39,21 +45,64 @@ import java.util.NoSuchElementException;
 @Timed("petclinic.vet")
 class VetResource {
 
+    private static final Logger log = LoggerFactory.getLogger(VetResource.class);
     private final VetService vetService;
 
     VetResource(VetService vetService) {
         this.vetService = vetService;
     }
 
+    /**
+     * Get all vets.
+     */
     @GetMapping
     @Cacheable("vets")
     public List<Vet> showResourcesVetList() {
         return vetService.findAll();
     }
 
+    /**
+     * Get a specific vet by ID.
+     */
     @GetMapping("/{vetId}")
-    public Vet findVet(@PathVariable("vetId") int vetId) {
+    public Vet findVet(@PathVariable("vetId") @Min(1) int vetId) {
         return vetService.findById(vetId)
             .orElseThrow(() -> new NoSuchElementException("Vet not found with id: " + vetId));
+    }
+
+    /**
+     * Create a new vet.
+     */
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @CacheEvict(value = "vets", allEntries = true)
+    public Vet createVet(@Valid @RequestBody Vet vet) {
+        log.info("Creating new vet: {} {}", vet.getFirstName(), vet.getLastName());
+        return vetService.save(vet);
+    }
+
+    /**
+     * Update an existing vet.
+     */
+    @PutMapping("/{vetId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @CacheEvict(value = "vets", allEntries = true)
+    public void updateVet(@PathVariable("vetId") @Min(1) int vetId,
+                         @Valid @RequestBody Vet vet) {
+        log.info("Updating vet with id: {}", vetId);
+        vetService.update(vetId, vet);
+    }
+
+    /**
+     * Delete a vet.
+     */
+    @DeleteMapping("/{vetId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @CacheEvict(value = "vets", allEntries = true)
+    public void deleteVet(@PathVariable("vetId") @Min(1) int vetId) {
+        log.info("Deleting vet with id: {}", vetId);
+        vetService.findById(vetId)
+            .orElseThrow(() -> new NoSuchElementException("Vet not found with id: " + vetId));
+        vetService.deleteById(vetId);
     }
 }

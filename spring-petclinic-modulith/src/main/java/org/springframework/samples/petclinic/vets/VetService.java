@@ -52,10 +52,17 @@ public interface VetService {
     
     /**
      * Update an existing vet.
-     * 
+     *
      * @param vetId the vet ID
      * @param vet the vet data to update
      * @return the updated vet
      */
     Vet update(Integer vetId, Vet vet);
+
+    /**
+     * Delete a vet by ID.
+     *
+     * @param vetId the vet ID
+     */
+    void deleteById(Integer vetId);
 }

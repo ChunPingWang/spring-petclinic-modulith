@@ -104,4 +104,16 @@ class VetServiceImpl implements VetService {
         log.info("Vet updated: {}", updatedVet.getId());
         return updatedVet;
     }
+
+    @Override
+    public void deleteById(Integer vetId) {
+        log.info("Deleting vet ID: {}", vetId);
+
+        Vet existingVet = vetRepository.findById(vetId)
+            .orElseThrow(() -> new ResourceNotFoundException("Vet", vetId));
+
+        vetRepository.deleteById(vetId);
+
+        log.info("Vet deleted: {} {}", existingVet.getFirstName(), existingVet.getLastName());
+    }
 }
