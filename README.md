@@ -14,9 +14,10 @@
 3. [💡 初學者必讀：Spring Modulith 核心概念](#-初學者必讀spring-modulith-核心概念)
 4. [🏗️ 專案架構一覽](#️-專案架構一覽)
 5. [📦 詳細設定與執行](#-詳細設定與執行)
-6. [🧪 測試與驗證](#-測試與驗證)
-7. [📚 進階學習與文件](#-進階學習與文件)
-8. [🆚 對比：微服務 vs 模組化單體](#-對比微服務-vs-模組化單體)
+6. [📡 API 文檔與測試](#-api-文檔與測試)
+7. [🧪 測試與驗證](#-測試與驗證)
+8. [📚 進階學習與文件](#-進階學習與文件)
+9. [🆚 對比：微服務 vs 模組化單體](#-對比微服務-vs-模組化單體)
 
 ---
 
@@ -69,6 +70,8 @@ cd spring-petclinic-modulith/spring-petclinic-modulith
 - 首頁：http://localhost:8080
 - 寵物列表：http://localhost:8080/#/pets
 - 獸醫列表：http://localhost:8080/#/vets
+- **API 文檔 (Swagger UI)**：http://localhost:8080/swagger-ui.html
+- **OpenAPI 規格 (JSON)**：http://localhost:8080/v3/api-docs
 - 健康檢查：http://localhost:8080/actuator/health
 
 ### 方式 2: 完整堆疊（含監控）
@@ -966,6 +969,224 @@ erDiagram
         timestamp completion_date
     }
 ```
+
+---
+
+## 📡 API 文檔與測試
+
+### Swagger UI 互動式文檔
+
+應用程式已整合 **OpenAPI 3.0** 與 **Swagger UI**，提供完整的 API 互動式文檔。
+
+**存取方式**：
+- **Swagger UI**：http://localhost:8080/swagger-ui.html
+- **OpenAPI JSON 規格**：http://localhost:8080/v3/api-docs
+
+**功能特點**：
+- 🔍 瀏覽所有 REST API 端點
+- 📝 查看請求/響應結構與範例
+- 🧪 直接在瀏覽器中測試 API
+- 📊 自動生成的 API 文檔
+
+### API 測試資料
+
+以下提供各模組的測試資料，可直接在 Swagger UI 中使用：
+
+#### 1. Vets API（獸醫管理）
+
+**查詢所有獸醫** - `GET /vets`
+```bash
+curl http://localhost:8080/vets
+```
+
+**查詢單一獸醫** - `GET /vets/{id}`
+```bash
+curl http://localhost:8080/vets/1
+```
+
+**新增獸醫** - `POST /vets`
+```bash
+curl -X POST http://localhost:8080/vets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "陳",
+    "lastName": "大明"
+  }'
+```
+
+**更新獸醫** - `PUT /vets/{id}`
+```bash
+curl -X PUT http://localhost:8080/vets/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "陳",
+    "lastName": "大明",
+    "specialties": []
+  }'
+```
+
+**刪除獸醫** - `DELETE /vets/{id}`
+```bash
+curl -X DELETE http://localhost:8080/vets/1
+```
+
+#### 2. Visits API（就診記錄管理）
+
+**查詢所有就診記錄** - `GET /visits`
+```bash
+curl http://localhost:8080/visits
+```
+
+**查詢單一就診記錄** - `GET /visits/{id}`
+```bash
+curl http://localhost:8080/visits/1
+```
+
+**查詢特定寵物的就診記錄** - `GET /visits?petId={petId}`
+```bash
+curl http://localhost:8080/visits?petId=1
+```
+
+**查詢特定獸醫的就診記錄** - `GET /visits?vetId={vetId}`
+```bash
+curl http://localhost:8080/visits?vetId=1
+```
+
+**新增就診記錄** - `POST /visits`
+```bash
+curl -X POST http://localhost:8080/visits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "petId": 1,
+    "vetId": 1,
+    "visitDate": "2024-01-15T10:00:00",
+    "description": "定期健康檢查"
+  }'
+```
+
+**完成就診** - `POST /visits/{id}/complete`
+```bash
+curl -X POST http://localhost:8080/visits/1/complete
+```
+
+**取消就診** - `POST /visits/{id}/cancel`
+```bash
+curl -X POST http://localhost:8080/visits/1/cancel
+```
+
+#### 3. Owners API（客戶管理）
+
+**查詢所有客戶** - `GET /owners`
+```bash
+curl http://localhost:8080/owners
+```
+
+**查詢單一客戶** - `GET /owners/{id}`
+```bash
+curl http://localhost:8080/owners/1
+```
+
+**新增客戶** - `POST /owners`
+```bash
+curl -X POST http://localhost:8080/owners \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "王",
+    "lastName": "小明",
+    "address": "台北市信義區信義路五段7號",
+    "city": "台北",
+    "telephone": "0912345678"
+  }'
+```
+
+**更新客戶** - `PUT /owners/{id}`
+```bash
+curl -X PUT http://localhost:8080/owners/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "王",
+    "lastName": "小明",
+    "address": "台北市信義區信義路五段7號",
+    "city": "台北",
+    "telephone": "0912345678"
+  }'
+```
+
+#### 4. Pets API（寵物管理）
+
+**查詢客戶的所有寵物** - `GET /owners/{ownerId}/pets`
+```bash
+curl http://localhost:8080/owners/1/pets
+```
+
+**新增寵物** - `POST /owners/{ownerId}/pets`
+```bash
+curl -X POST http://localhost:8080/owners/1/pets \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "小黑",
+    "birthDate": "2020-05-15",
+    "type": {
+      "id": 1,
+      "name": "cat"
+    }
+  }'
+```
+
+**更新寵物資料** - `PUT /owners/{ownerId}/pets/{petId}`
+```bash
+curl -X PUT http://localhost:8080/owners/1/pets/1 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "小黑",
+    "birthDate": "2020-05-15",
+    "type": {
+      "id": 1,
+      "name": "cat"
+    }
+  }'
+```
+
+### 預載測試資料
+
+應用程式啟動時會自動載入以下測試資料：
+
+**客戶 (Owners)**：
+- ID 1-10：George Franklin, Betty Davis, Eduardo Rodriquez... 等
+
+**寵物 (Pets)**：
+- ID 1: Leo (cat) - Owner: George Franklin
+- ID 2: Basil (hamster) - Owner: Betty Davis
+- ID 3: Rosy (dog) - Owner: Eduardo Rodriquez
+- ...等 13 隻寵物
+
+**獸醫 (Vets)**：
+- ID 1: James Carter (無專業)
+- ID 2: Helen Leary (專業：radiology)
+- ID 3: Linda Douglas (專業：dentistry, surgery)
+- ID 4: Rafael Ortega (專業：surgery)
+- ID 5: Henry Stevens (專業：radiology)
+- ID 6: Sharon Jenkins (無專業)
+
+**寵物類型 (Types)**：
+- ID 1: cat
+- ID 2: dog
+- ID 3: lizard
+- ID 4: snake
+- ID 5: bird
+- ID 6: hamster
+
+**就診記錄 (Visits)**：
+- 初始資料庫中有 4 筆歷史就診記錄
+
+### Postman 或 Insomnia 測試
+
+您也可以將 OpenAPI 規格匯入 Postman 或 Insomnia：
+
+1. 啟動應用程式
+2. 開啟 Postman
+3. File → Import → 輸入 URL: `http://localhost:8080/v3/api-docs`
+4. 自動生成完整的 API 集合
 
 ---
 
