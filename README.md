@@ -347,9 +347,9 @@ graph TB
 | **GenAI** | AI 聊天和向量儲存同步 | `ChatService` |
 | **Shared** | 共用基礎（例外處理、配置） | 所有工具類別 |
 
-### 🎨 三層式乾淨架構（所有核心模組）
+### 🎨 六角形架構（Hexagonal Architecture）
 
-Vets、Visits 和 Customers 三大核心模組已重構為**六角形架構（Hexagonal Architecture）**，實現業務邏輯與框架的完全解耦：
+Vets、Visits 和 Customers 三大核心模組已完成**六角形架構（Ports and Adapters 模式）**重構，實現業務邏輯與框架的完全解耦：
 
 ```
 ┌─────────────────────────────────────────────────────────┐
