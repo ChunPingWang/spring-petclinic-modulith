@@ -3,33 +3,29 @@
 SYNC IMPACT REPORT - Constitution Update
 ═════════════════════════════════════════════════════════════════════════════
 
-Version Change: INITIAL → 1.0.0
-Rationale: Initial constitution creation with comprehensive principles for code quality,
-           testing standards, BDD, DDD, SOLID, hexagonal architecture, UX consistency,
-           and performance requirements.
+Version Change: 1.0.0 → 1.1.0
+Rationale: MINOR version bump - added new principle IX (Documentation & Localization Standards)
+           requiring Traditional Chinese (zh-TW) for all specifications, plans, and user-facing
+           documentation while keeping the constitution itself in English.
 
 Modified Principles:
-  - NEW: I. Code Quality & Clean Code
-  - NEW: II. Testing Standards (Behavior Driven Development)
-  - NEW: III. Domain-Driven Design (DDD)
-  - NEW: IV. SOLID Principles
-  - NEW: V. Hexagonal Architecture (Ports & Adapters)
-  - NEW: VI. Framework Isolation (Infrastructure Layer Only)
-  - NEW: VII. User Experience Consistency
-  - NEW: VIII. Performance & Non-Functional Requirements
+  - NEW: IX. Documentation & Localization Standards (Traditional Chinese requirement)
 
-Added Sections:
-  - Development Workflow & Quality Gates
-  - Architecture Compliance
+Added Sections: None
 
-Removed Sections: None (initial version)
+Removed Sections: None
 
 Templates Requiring Updates:
-  ✅ plan-template.md - Constitution Check section aligns with new principles
-  ✅ spec-template.md - Functional requirements support UX and performance criteria
-  ✅ tasks-template.md - Task categorization supports BDD test-first and layered architecture
+  ✅ plan-template.md - Compatible (no changes needed)
+  ✅ spec-template.md - Compatible (no changes needed)
+  ✅ tasks-template.md - Compatible (no changes needed)
+  ⚠️  Future spec/plan/tasks files MUST be written in Traditional Chinese (zh-TW)
 
-Follow-up TODOs: None - all placeholders filled
+Follow-up TODOs:
+  - When generating new spec.md files, use Traditional Chinese
+  - When generating new plan.md files, use Traditional Chinese
+  - When generating new tasks.md files, use Traditional Chinese
+  - README.md and user-facing docs should be in Traditional Chinese (already compliant)
 
 ═════════════════════════════════════════════════════════════════════════════
 -->
@@ -283,6 +279,60 @@ The application MUST meet performance and operational requirements:
 
 ---
 
+### IX. Documentation & Localization Standards
+
+All project documentation MUST follow consistent language standards:
+
+- **Constitution (This Document)**: MUST be written in English
+  - Provides universal accessibility for international contributors
+  - Serves as the authoritative governance document
+  - English ensures clarity in architectural and technical principles
+
+- **Specifications (spec.md)**: MUST be written in Traditional Chinese (zh-TW)
+  - Located in `.specify/specs/[###-feature-name]/spec.md`
+  - User stories, acceptance scenarios, requirements in Traditional Chinese
+  - Enables direct stakeholder communication in native language
+  - Reduces translation overhead and misunderstandings
+
+- **Implementation Plans (plan.md)**: MUST be written in Traditional Chinese (zh-TW)
+  - Located in `.specify/specs/[###-feature-name]/plan.md`
+  - Technical context, project structure, complexity tracking in Traditional Chinese
+  - Facilitates local team collaboration
+
+- **Task Lists (tasks.md)**: MUST be written in Traditional Chinese (zh-TW)
+  - Located in `.specify/specs/[###-feature-name]/tasks.md`
+  - Task descriptions, checkpoints, implementation strategy in Traditional Chinese
+  - Clear task breakdown for Chinese-speaking development teams
+
+- **User-Facing Documentation**: MUST be written in Traditional Chinese (zh-TW)
+  - README.md (already compliant)
+  - Quickstart guides, tutorials, API documentation
+  - Error messages and user interface text
+  - Ensures accessibility for primary user base
+
+- **Code & Technical Artifacts**: MUST be written in English
+  - Source code (Java classes, methods, variables)
+  - Code comments and JavaDoc
+  - Commit messages
+  - Technical architecture documents (ARCHITECTURE_DECISIONS.md, DEVELOPER_GUIDE.md)
+  - Maintains international open-source standards
+
+**Verification**:
+- All new spec.md files MUST be reviewed for Traditional Chinese compliance
+- All new plan.md files MUST be reviewed for Traditional Chinese compliance
+- All new tasks.md files MUST be reviewed for Traditional Chinese compliance
+- README.md and user documentation MUST use Traditional Chinese
+- Constitution and technical docs MUST remain in English
+
+**Exceptions**:
+- Code identifiers (class names, method names, variable names) MUST use English
+- Git branch names and commit messages MUST use English
+- Technical configuration files (YAML, properties) use English keys with Chinese values where applicable
+
+**Rationale**: This dual-language approach balances international collaboration (English code and technical docs) with local stakeholder communication (Traditional Chinese specifications and user docs). The project's README.md already demonstrates successful Traditional Chinese documentation, making this a natural extension of existing practices.
+
+---
+
 ## Development Workflow & Quality Gates
 
 ### Pre-Commit Requirements
@@ -303,6 +353,7 @@ Pull requests MUST:
 3. Follow established architectural patterns (hexagonal architecture for business logic)
 4. Update documentation if API contracts change
 5. Include benchmark results if performance-critical code is changed
+6. **NEW**: Verify language compliance (spec/plan/tasks in Traditional Chinese, code/commits in English)
 
 ### Definition of Done (DoD)
 
@@ -316,6 +367,7 @@ A feature is complete when:
 6. ✅ Security reviewed (input validation, no vulnerabilities)
 7. ✅ Observability added (metrics, logging, tracing)
 8. ✅ Peer reviewed and approved
+9. ✅ **NEW**: Language standards verified (Traditional Chinese for specs/plans/tasks)
 
 ---
 
@@ -392,4 +444,4 @@ Any deviation from constitution principles MUST be justified:
 
 ---
 
-**Version**: 1.0.0 | **Ratified**: 2025-11-23 | **Last Amended**: 2025-11-23
+**Version**: 1.1.0 | **Ratified**: 2025-11-23 | **Last Amended**: 2025-11-23
