@@ -252,21 +252,23 @@ org.springframework.samples.petclinic/
 
 ## 🏗️ 專案架構一覽
 
-### 📊 當前專案狀態（Phase 14）
+### 📊 當前專案狀態（Phase 16）
 
-本專案目前已完成**依賴反轉原則 (Dependency Inversion Principle)** 重構，實現了三層式乾淨架構：
+本專案已完成**三大核心模組**的六角形架構重構，實現了完整的依賴反轉原則與三層式乾淨架構：
 
 | 重構模組 | 狀態 | 測試覆蓋 | 說明 |
 |---------|------|---------|------|
-| **Vets 模組** | ✅ 完成 | 19/19 測試通過 | 三層式架構 + Business 層測試 |
-| **Visits 模組** | ✅ 完成 | 31/31 測試通過 | 三層式架構 + Business 層測試 |
-| **Customers 模組** | ⏸️ 未重構 | 8/8 測試通過 | 保持原始架構 |
+| **Vets 模組** | ✅ 完成 | 19/19 測試通過 | 六角形架構 + Business 層測試 (12 tests) |
+| **Visits 模組** | ✅ 完成 | 31/31 測試通過 | 六角形架構 + Business 層測試 (20 tests) |
+| **Customers 模組** | ✅ 完成 | 21/21 測試通過 | 六角形架構 + Business 層測試 (13 tests) |
 | **GenAI 模組** | ⏸️ 保持現狀 | N/A | 整合層，不需重構 |
 
 **最新進度**：
 - ✅ Phase 12: Vets 模組三層式架構重構
 - ✅ Phase 13: Visits 模組三層式架構重構
 - ✅ Phase 14: Business 層完整單元測試覆蓋（32個測試案例）
+- ✅ Phase 15: 整合 OpenAPI/Swagger API 文檔
+- ✅ Phase 16: Customers 模組六角形架構重構 + Business 層測試（71個測試案例）
 
 ### 系統架構圖
 
@@ -345,9 +347,9 @@ graph TB
 | **GenAI** | AI 聊天和向量儲存同步 | `ChatService` |
 | **Shared** | 共用基礎（例外處理、配置） | 所有工具類別 |
 
-### 🎨 三層式乾淨架構（Vets & Visits 模組）
+### 🎨 三層式乾淨架構（所有核心模組）
 
-Vets 和 Visits 模組已重構為**依賴反轉的三層式架構**，實現業務邏輯與框架的完全解耦：
+Vets、Visits 和 Customers 三大核心模組已重構為**六角形架構（Hexagonal Architecture）**，實現業務邏輯與框架的完全解耦：
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -1212,13 +1214,14 @@ cd spring-petclinic-modulith
 ### 驗證測試結果
 
 ```bash
-# 檢查是否所有 38 個測試都通過
+# 檢查是否所有 71 個測試都通過
 # 應該看到: [INFO] BUILD SUCCESS
+# Tests run: 71, Failures: 0, Errors: 0, Skipped: 0
 ```
 
 ### 測試涵蓋範圍
 
-專案包含 **完整的測試套件**，涵蓋多個層級：
+專案包含 **完整的測試套件（71個測試）**，涵蓋多個層級：
 
 #### 模組層級測試
 - ✅ **ModulithStructureTest** - 模組結構驗證
@@ -1240,14 +1243,19 @@ cd spring-petclinic-modulith
   - 委派驗證、三向模型轉換、異常翻譯
 - ✅ **VisitResourceTest** - REST API 端點測試
 
-#### Customers 模組測試（8 個測試）
-- ✅ **CustomerServiceImplTest** - Service 層測試
+#### Customers 模組測試（21 個測試）
+- ✅ **CustomerBusinessServiceTest** (13 測試) - Business 層純 Java 單元測試
+  - CRUD 操作、領域驗證（姓名、地址、電話格式）
+  - 錯誤處理（null 檢查、無效 ID、不存在實體）
+  - 事件發布驗證（CustomerCreated, CustomerUpdated, CustomerDeleted）
+- ✅ **CustomerServiceImplTest** (8 測試) - Service 層整合測試
+  - 委派驗證、領域模型轉換、異常翻譯
 - ✅ **OwnerResourceTest** - REST API 端點測試
 - ✅ **PetResourceTest** - REST API 端點測試
 
 **測試特點**：
 - 🎯 **多層測試**：Domain → Business → Service → API
-- 🧪 **純 Java 測試**：Business 層零框架依賴
+- 🧪 **純 Java 測試**：Business 層零框架依賴（45個測試）
 - 🔄 **整合測試**：事件發布與監聽、模組間通訊
 - 📊 **高覆蓋率**：CRUD 操作、邊界條件、錯誤處理
 
