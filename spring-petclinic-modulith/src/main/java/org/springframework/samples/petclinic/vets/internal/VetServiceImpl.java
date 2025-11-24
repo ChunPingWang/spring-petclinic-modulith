@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-class VetServiceImpl implements VetService {
+public class VetServiceImpl implements VetService {
 
     private static final Logger log = LoggerFactory.getLogger(VetServiceImpl.class);
 

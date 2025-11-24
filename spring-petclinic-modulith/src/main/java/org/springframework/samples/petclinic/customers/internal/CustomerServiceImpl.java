@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-class CustomerServiceImpl implements CustomerService {
+public class CustomerServiceImpl implements CustomerService {
 
     private static final Logger log = LoggerFactory.getLogger(CustomerServiceImpl.class);
 

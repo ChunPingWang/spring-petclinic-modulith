@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
  *
  * @author PetClinic Team
  */
-@Component
+@Component("customersEventPublisher")
 public class SpringEventPublisherAdapter implements EventPublisher {
 
     private final ApplicationEventPublisher springEventPublisher;

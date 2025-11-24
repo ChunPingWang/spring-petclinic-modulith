@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @Transactional
-class VisitServiceImpl implements VisitService {
+public class VisitServiceImpl implements VisitService {
 
     private static final Logger log = LoggerFactory.getLogger(VisitServiceImpl.class);
 
